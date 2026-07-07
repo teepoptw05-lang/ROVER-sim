@@ -1,16 +1,1602 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <title>Space Rover Simulation</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SURVEYOR // Planetary Rover Uplink</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --bg:#05070a;
+    --panel:#0b1017ee;
+    --panel-solid:#0d1420;
+    --line:#1e2a38;
+    --amber:#ffb454;
+    --cyan:#6fe7dd;
+    --mars:#c1622f;
+    --moon:#9aa3ad;
+    --text:#e8ecf1;
+    --dim:#7c8797;
+    --danger:#ff5f56;
+    --good:#4ade80;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg);color:var(--text);
+    font-family:'Rajdhani',sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none;}
+  .mono{font-family:'Space Mono',monospace;}
+  #canvas-container{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  /* ---------- shared overlay chrome ---------- */
+  .scanlines::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode:overlay;
+  }
+  .vignette::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+
+  /* ---------- menu screens ---------- */
+  .screen{
+    position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:28px;background:radial-gradient(ellipse at 50% 20%, #101823 0%, #05070a 70%);
+    padding:40px 20px;
+  }
+  .eyebrow{font-family:'Space Mono',monospace;letter-spacing:.35em;font-size:11px;color:var(--amber);
+    text-transform:uppercase;opacity:.85;}
+  .title-xl{font-size:clamp(28px,5vw,52px);font-weight:700;letter-spacing:.02em;margin:0;
+    text-shadow:0 0 30px rgba(111,231,221,0.15);}
+  .subtitle{color:var(--dim);font-size:15px;max-width:560px;text-align:center;line-height:1.5;margin:0;}
+
+  .card-row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;max-width:1100px;}
+  .card{
+    width:260px;background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;
+    padding:22px;cursor:pointer;transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    position:relative;overflow:hidden;
+  }
+  .card:hover, .card:focus-visible{transform:translateY(-4px);border-color:var(--cyan);
+    box-shadow:0 8px 30px rgba(111,231,221,0.12);outline:none;}
+  .card:active{transform:translateY(-1px);}
+  .planet-orb{width:96px;height:96px;border-radius:50%;margin:0 auto 18px;position:relative;}
+  .orb-mars{background:radial-gradient(circle at 35% 32%, #e08a52, #c1622f 45%, #7a3c1c 85%);
+    box-shadow:inset -14px -10px 24px rgba(0,0,0,.55), 0 0 40px rgba(193,98,47,.25);}
+  .orb-moon{background:radial-gradient(circle at 35% 32%, #d9dade, #9aa3ad 45%, #4b5157 85%);
+    box-shadow:inset -14px -10px 24px rgba(0,0,0,.6), 0 0 30px rgba(154,163,173,.2);}
+  .card h3{font-size:22px;margin:0 0 2px;text-align:center;letter-spacing:.03em;}
+  .card .tag{text-align:center;color:var(--dim);font-size:12px;margin-bottom:14px;font-family:'Space Mono',monospace;}
+  .stat-line{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);
+    font-family:'Space Mono',monospace;padding:4px 0;border-top:1px solid var(--line);}
+  .stat-line span:last-child{color:var(--text);}
+
+  .rover-card{width:300px;text-align:left;}
+  .rover-card .badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.08em;
+    padding:3px 8px;border-radius:3px;background:#132030;color:var(--cyan);border:1px solid #1e3a45;margin-bottom:10px;}
+  .rover-card h3{font-size:20px;margin:0 0 2px;text-align:left;}
+  .rover-card .full{color:var(--dim);font-size:12px;font-family:'Space Mono',monospace;margin-bottom:12px;}
+  .rover-card p.desc{font-size:13px;color:#b8c0cb;line-height:1.45;min-height:70px;margin:10px 0;}
+  .bar-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);margin:5px 0;
+    font-family:'Space Mono',monospace;}
+  .bar-track{flex:1;height:5px;background:#161f2b;border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;background:var(--cyan);}
+  .back-link{position:fixed;top:20px;left:24px;z-index:30;color:var(--dim);font-family:'Space Mono',monospace;
+    font-size:12px;cursor:pointer;letter-spacing:.05em;}
+  .back-link:hover{color:var(--cyan);}
+
+  .btn{
+    font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.04em;font-size:14px;
+    background:var(--amber);color:#1a1204;border:none;padding:11px 22px;border-radius:4px;cursor:pointer;
+    text-transform:uppercase;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn.ghost:hover{border-color:var(--cyan);color:var(--cyan);}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;font-family:'Space Mono',monospace;
+    display:none;}
+  #hud .frame-corner{position:absolute;width:26px;height:26px;border:2px solid var(--cyan);opacity:.55;}
+  .fc-tl{top:14px;left:14px;border-right:none;border-bottom:none;}
+  .fc-tr{top:14px;right:14px;border-left:none;border-bottom:none;}
+  .fc-bl{bottom:14px;left:14px;border-right:none;border-top:none;}
+  .fc-br{bottom:14px;right:14px;border-left:none;border-top:none;}
+
+  .hud-top{position:absolute;top:16px;left:52px;right:52px;display:flex;justify-content:space-between;
+    align-items:flex-start;}
+  .hud-block{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px 14px;
+    font-size:11px;color:var(--dim);min-width:150px;}
+  .hud-block b{display:block;color:var(--text);font-size:15px;font-family:'Rajdhani',sans-serif;
+    font-weight:700;letter-spacing:.02em;}
+  .hud-block.right{text-align:right;}
+
+  .sol-badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--amber);border-radius:50%;width:64px;height:64px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .sol-badge .n{font-size:20px;font-weight:700;font-family:'Rajdhani',sans-serif;color:var(--amber);line-height:1;}
+  .sol-badge .l{font-size:8px;letter-spacing:.15em;color:var(--dim);margin-top:2px;}
+
+  .hud-bottom-left{position:absolute;bottom:16px;left:52px;background:var(--panel);border:1px solid var(--line);
+    border-radius:4px;padding:10px 14px;width:220px;}
+  .batt-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);margin-bottom:6px;}
+  .batt-track{flex:1;height:8px;background:#161f2b;border-radius:4px;overflow:hidden;border:1px solid var(--line);}
+  .batt-fill{height:100%;transition:width .3s ease,background .3s ease;}
+  .telemetry-line{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);padding:2px 0;}
+  .telemetry-line span:last-child{color:var(--text);}
+
+  .objectives{position:absolute;top:96px;left:52px;background:var(--panel);border:1px solid var(--line);
+    border-radius:4px;padding:10px 14px;min-width:190px;font-size:12px;}
+  .objectives h4{margin:0 0 6px;font-size:10px;letter-spacing:.15em;color:var(--amber);
+    font-family:'Space Mono',monospace;font-weight:400;}
+  .obj-item{display:flex;justify-content:space-between;color:var(--dim);padding:2px 0;font-size:12px;}
+  .obj-item.done{color:var(--good);}
+
+  #minimap-wrap{position:absolute;bottom:16px;right:52px;width:150px;height:150px;border-radius:50%;
+    border:1px solid var(--line);background:var(--panel);overflow:hidden;}
+  #minimap{width:100%;height:100%;}
+
+  .prompt{position:absolute;bottom:190px;left:50%;transform:translateX(-50%);background:var(--panel);
+    border:1px solid var(--cyan);border-radius:4px;padding:8px 16px;font-size:13px;color:var(--cyan);
+    display:none;white-space:nowrap;}
+  .crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;
+    display:none;}
+  .crosshair::before,.crosshair::after{content:'';position:absolute;background:var(--cyan);opacity:.6;}
+  .crosshair::before{width:100%;height:1px;top:50%;left:0;}
+  .crosshair::after{height:100%;width:1px;left:50%;top:0;}
+
+  .warning-banner{position:absolute;top:76px;left:50%;transform:translateX(-50%);background:rgba(255,95,86,0.14);
+    border:1px solid var(--danger);color:var(--danger);padding:6px 18px;border-radius:4px;font-size:12px;
+    letter-spacing:.08em;display:none;animation:blinkwarn 1.4s infinite;}
+  @keyframes blinkwarn{0%,100%{opacity:1;}50%{opacity:.45;}}
+
+  .toast{position:absolute;bottom:230px;left:50%;transform:translateX(-50%);background:var(--panel-solid);
+    border:1px solid var(--cyan);color:var(--cyan);padding:8px 18px;border-radius:4px;font-size:13px;
+    opacity:0;transition:opacity .35s ease, transform .35s ease;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  .view-tag{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:var(--dim);
+    font-size:10px;letter-spacing:.2em;text-align:center;}
+  .view-tag b{color:var(--text);}
+
+  /* help overlay */
+  #help{position:fixed;inset:0;z-index:25;background:rgba(3,5,8,0.88);display:none;align-items:center;
+    justify-content:center;font-family:'Space Mono',monospace;}
+  #help .box{background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:28px 34px;
+    max-width:480px;width:90%;}
+  #help h3{font-family:'Rajdhani',sans-serif;color:var(--amber);letter-spacing:.05em;margin-top:0;}
+  #help .row{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);padding:6px 0;
+    border-bottom:1px solid var(--line);}
+  #help .row b{color:var(--text);}
+
+  /* debrief */
+  #debrief{position:fixed;inset:0;z-index:30;background:rgba(3,5,8,0.92);display:none;align-items:center;
+    justify-content:center;}
+  #debrief .box{background:var(--panel-solid);border:1px solid var(--amber);border-radius:8px;
+    padding:38px 44px;max-width:460px;width:90%;text-align:center;}
+  #debrief h2{color:var(--amber);margin:0 0 6px;font-size:26px;}
+  #debrief .rank{font-family:'Space Mono',monospace;color:var(--cyan);font-size:13px;margin-bottom:20px;}
+  #debrief .stat{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:13px;
+    color:var(--dim);padding:6px 0;border-bottom:1px solid var(--line);}
+  #debrief .stat b{color:var(--text);}
+  #debrief .score{font-size:34px;color:var(--good);margin:16px 0;font-family:'Rajdhani',sans-serif;font-weight:700;}
+  #debrief .btns{display:flex;gap:12px;justify-content:center;margin-top:20px;}
+
+  .hint-key{display:inline-block;background:#182233;border:1px solid #2a3a4d;border-radius:3px;padding:1px 6px;
+    color:var(--text);font-size:11px;margin:0 2px;}
+
+  /* ---------- difficulty cards ---------- */
+  .diff-card{width:230px;}
+  .diff-dot{width:14px;height:14px;border-radius:50%;margin-bottom:14px;}
+  .diff-easy .diff-dot{background:var(--good);}
+  .diff-normal .diff-dot{background:var(--amber);}
+  .diff-hard .diff-dot{background:var(--danger);}
+  .diff-easy:hover{border-color:var(--good);}
+  .diff-hard:hover{border-color:var(--danger);}
+
+  /* ---------- VFX overlays ---------- */
+  #storm-overlay{position:fixed;inset:0;z-index:6;pointer-events:none;opacity:0;
+    background:repeating-linear-gradient(115deg, rgba(180,110,60,0.12) 0px, rgba(180,110,60,0.12) 3px, transparent 3px, transparent 8px);
+    background-size:220% 220%;transition:opacity 1.1s ease;animation:stormdrift 7s linear infinite;}
+  #storm-overlay.active{opacity:1;}
+  @keyframes stormdrift{0%{background-position:0% 0%;}100%{background-position:220% 70%;}}
+
+  #camera-flash{position:fixed;inset:0;z-index:40;pointer-events:none;background:#fff;opacity:0;}
+  #camera-flash.flash{animation:flashfx .4s ease-out;}
+  @keyframes flashfx{0%{opacity:0.85;}100%{opacity:0;}}
+
+  /* ---------- touch controls ---------- */
+  #touch-look-layer{position:fixed;inset:0;z-index:8;display:none;touch-action:none;}
+  #touch-controls{position:fixed;inset:0;z-index:12;pointer-events:none;display:none;}
+  #joystick-base{position:absolute;left:22px;bottom:22px;width:128px;height:128px;border-radius:50%;
+    background:rgba(18,26,38,0.4);border:2px solid rgba(111,231,221,0.4);pointer-events:auto;touch-action:none;}
+  #joystick-knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;
+    border-radius:50%;background:rgba(111,231,221,0.5);border:2px solid rgba(111,231,221,0.9);
+    transition:transform .05s linear;}
+  #touch-buttons{position:absolute;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;
+    align-items:flex-end;pointer-events:auto;}
+  .tbtn-row{display:flex;gap:10px;}
+  .tbtn{width:62px;height:62px;border-radius:50%;background:rgba(18,26,38,0.6);border:2px solid var(--cyan);
+    color:var(--text);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;display:flex;
+    flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none;}
+  .tbtn span{font-size:8px;font-family:'Space Mono',monospace;color:var(--dim);letter-spacing:.02em;margin-top:1px;}
+  .tbtn.active{background:rgba(111,231,221,0.4);}
+  .tbtn.small{width:44px;height:44px;font-size:12px;}
+
+  body.touch-mode .hud-bottom-left{bottom:150px;}
+  body.touch-mode #minimap-wrap{bottom:150px;}
+  body.touch-mode .prompt{bottom:280px;}
+  body.touch-mode .toast{bottom:320px;}
+  body.touch-mode .view-tag{display:none;}
+
+  @media (max-width:720px){
+    .hud-top,.hud-bottom-left,.objectives{left:16px !important;right:16px !important;}
+    #minimap-wrap{right:16px;width:110px;height:110px;}
+    .sol-badge{display:none;}
+    #joystick-base{width:106px;height:106px;}
+    #joystick-knob{width:46px;height:46px;margin:-23px 0 0 -23px;}
+    .tbtn{width:54px;height:54px;}
+    .tbtn.small{width:40px;height:40px;}
+  }
+</style>
 </head>
+<body class="vignette">
 
-<body>
+<div id="canvas-container" class="scanlines"></div>
+<div id="touch-look-layer"></div>
+<div id="storm-overlay"></div>
+<div id="camera-flash"></div>
+<div id="touch-controls">
+  <div id="joystick-base"><div id="joystick-knob"></div></div>
+  <div id="touch-buttons">
+    <div class="tbtn-row">
+      <button id="tbtn-view" class="tbtn small">V</button>
+      <button id="tbtn-help" class="tbtn small">?</button>
+    </div>
+    <div class="tbtn-row">
+      <button id="tbtn-tool" class="tbtn">E<span>เก็บ</span></button>
+      <button id="tbtn-photo" class="tbtn">F<span>ถ่ายภาพ</span></button>
+    </div>
+    <div class="tbtn-row" style="justify-content:flex-end;">
+      <button id="tbtn-boost" class="tbtn">⚡<span>เร่ง</span></button>
+    </div>
+  </div>
+</div>
 
-    <h1>🚀 Space Rover Simulation</h1>
+<!-- ================= PLANET SELECT ================= -->
+<div id="screen-planet" class="screen">
+  <div class="eyebrow">Surveyor Program // Mission Briefing</div>
+  <h1 class="title-xl">เลือกดาวสำหรับภารกิจสำรวจ</h1>
+  <p class="subtitle">เลือกโลกที่จะส่งหุ่นยนต์ลงสำรวจ แต่ละดาวมีแรงโน้มถ่วง ภูมิประเทศ และอันตรายที่แตกต่างกัน มองผ่านกล้อง Navcam ของหุ่นยนต์เอง</p>
+  <div class="card-row">
+    <div class="card" tabindex="0" data-planet="mars">
+      <div class="planet-orb orb-mars"></div>
+      <h3>ดาวอังคาร</h3>
+      <div class="tag">MARS · THE RED PLANET</div>
+      <div class="stat-line"><span>Gravity</span><span>0.38 g</span></div>
+      <div class="stat-line"><span>Atmosphere</span><span>Thin CO₂</span></div>
+      <div class="stat-line"><span>Hazard</span><span>Dust Storms</span></div>
+      <div class="stat-line"><span>Day Length</span><span>~24h 37m</span></div>
+    </div>
+    <div class="card" tabindex="0" data-planet="moon">
+      <div class="planet-orb orb-moon"></div>
+      <h3>ดวงจันทร์</h3>
+      <div class="tag">MOON · EARTH'S COMPANION</div>
+      <div class="stat-line"><span>Gravity</span><span>0.16 g</span></div>
+      <div class="stat-line"><span>Atmosphere</span><span>None</span></div>
+      <div class="stat-line"><span>Hazard</span><span>14-Day Night</span></div>
+      <div class="stat-line"><span>Day Length</span><span>~29.5 Earth days</span></div>
+    </div>
+  </div>
+</div>
 
-    <p>ยินดีต้อนรับสู่แบบจำลองหุ่นยนต์สำรวจดาว</p>
+<!-- ================= ROVER SELECT ================= -->
+<div id="screen-rover" class="screen" style="display:none;">
+  <div class="back-link" id="back-to-planet">← เลือกดาวใหม่</div>
+  <div class="eyebrow" id="rover-eyebrow">Deployment Roster</div>
+  <h1 class="title-xl" id="rover-title">เลือกหุ่นยนต์สำรวจ</h1>
+  <p class="subtitle">แต่ละคันสร้างจากหุ่นยนต์สำรวจดาวที่มีอยู่จริง มีระบบพลังงาน ความเร็ว และเครื่องมือวิทยาศาสตร์ต่างกัน</p>
+  <div class="card-row" id="rover-list"></div>
+</div>
 
-    <button>เริ่มสำรวจ</button>
+<!-- ================= DIFFICULTY SELECT ================= -->
+<div id="screen-difficulty" class="screen" style="display:none;">
+  <div class="back-link" id="back-to-rover">← เลือกหุ่นยนต์ใหม่</div>
+  <div class="eyebrow">Mission Parameters</div>
+  <h1 class="title-xl">เลือกระดับความยากของภารกิจ</h1>
+  <p class="subtitle">ความยากมีผลต่อจำนวนหิน หลุมอุกกาบาต ความถี่ของพายุฝุ่น และอัตราการใช้พลังงาน</p>
+  <div class="card-row" id="difficulty-list">
+    <div class="card diff-card diff-easy" data-diff="easy">
+      <div class="diff-dot"></div>
+      <h3>ฝึกหัด</h3>
+      <div class="tag">EASY</div>
+      <p class="desc" style="min-height:auto;">อุปสรรคน้อย พลังงานเหลือเฟือ เหมาะสำหรับฝึกควบคุมหุ่นยนต์</p>
+      <div class="stat-line"><span>ตัวอย่างหิน</span><span>4</span></div>
+      <div class="stat-line"><span>จุดพาโนรามา</span><span>2</span></div>
+      <div class="stat-line"><span>อันตราย</span><span>ต่ำ</span></div>
+    </div>
+    <div class="card diff-card diff-normal" data-diff="normal">
+      <div class="diff-dot"></div>
+      <h3>มาตรฐาน</h3>
+      <div class="tag">NORMAL</div>
+      <p class="desc" style="min-height:auto;">สมดุลระหว่างความท้าทายและพลังงาน ตรงตามภารกิจจริงส่วนใหญ่</p>
+      <div class="stat-line"><span>ตัวอย่างหิน</span><span>6</span></div>
+      <div class="stat-line"><span>จุดพาโนรามา</span><span>3</span></div>
+      <div class="stat-line"><span>อันตราย</span><span>ปานกลาง</span></div>
+    </div>
+    <div class="card diff-card diff-hard" data-diff="hard">
+      <div class="diff-dot"></div>
+      <h3>ซับซ้อน</h3>
+      <div class="tag">HARD</div>
+      <p class="desc" style="min-height:auto;">หินและหลุมอุกกาบาตหนาแน่น พายุฝุ่นถี่ขึ้น พลังงานหายากกว่าเดิม</p>
+      <div class="stat-line"><span>ตัวอย่างหิน</span><span>9</span></div>
+      <div class="stat-line"><span>จุดพาโนรามา</span><span>4</span></div>
+      <div class="stat-line"><span>อันตราย</span><span>สูง</span></div>
+    </div>
+  </div>
+</div>
 
+<!-- ================= HUD ================= -->
+<div id="hud">
+  <div class="frame-corner fc-tl"></div>
+  <div class="frame-corner fc-tr"></div>
+  <div class="frame-corner fc-bl"></div>
+  <div class="frame-corner fc-br"></div>
+
+  <div class="hud-top">
+    <div class="hud-block" id="hud-rover-block">
+      <b id="hud-rover-name">—</b>
+      <span id="hud-rover-full">—</span>
+      <span id="hud-difficulty" style="color:var(--amber);">NORMAL</span>
+    </div>
+    <div class="hud-block right">
+      <b id="hud-time-label">DAY</b>
+      <span id="hud-signal">Signal Delay: —</span>
+    </div>
+  </div>
+
+  <div class="sol-badge">
+    <div class="n" id="hud-sol">1</div>
+    <div class="l">SOL</div>
+  </div>
+
+  <div class="objectives">
+    <h4>MISSION OBJECTIVES</h4>
+    <div class="obj-item" id="obj-samples"><span>Rock Samples</span><span>0/0</span></div>
+    <div class="obj-item" id="obj-photos"><span>Panoramas</span><span>0/0</span></div>
+  </div>
+
+  <div class="warning-banner" id="warning-banner">⚠ WARNING</div>
+
+  <div class="hud-bottom-left">
+    <div class="batt-row">
+      <span id="hud-power-icon">⚡</span>
+      <div class="batt-track"><div class="batt-fill" id="batt-fill" style="width:100%;background:#4ade80;"></div></div>
+      <span id="batt-pct">100%</span>
+    </div>
+    <div class="telemetry-line"><span>Speed</span><span id="tel-speed">0.0 m/s</span></div>
+    <div class="telemetry-line"><span>Position</span><span id="tel-pos">0.00°E 0.00°N</span></div>
+    <div class="telemetry-line"><span>Terrain</span><span id="tel-terrain">Nominal</span></div>
+    <div class="telemetry-line"><span>Score</span><span id="tel-score">0</span></div>
+  </div>
+
+  <div id="minimap-wrap"><canvas id="minimap" width="150" height="150"></canvas></div>
+
+  <div class="prompt" id="prompt"></div>
+  <div class="crosshair" id="crosshair"></div>
+  <div class="toast" id="toast"></div>
+  <div class="view-tag">CAM MODE: <b id="view-mode-label">CHASE</b> · <span class="hint-key">V</span> to switch · <span class="hint-key">H</span> for controls</div>
+</div>
+
+<!-- ================= HELP ================= -->
+<div id="help">
+  <div class="box">
+    <h3>UPLINK CONTROLS</h3>
+    <div class="row"><span>Drive forward / back</span><b>W S / ↑ ↓</b></div>
+    <div class="row"><span>Turn left / right</span><b>A D / ← →</b></div>
+    <div class="row"><span>Boost (extra battery draw)</span><b>SHIFT</b></div>
+    <div class="row"><span>Use science instrument</span><b>E</b></div>
+    <div class="row"><span>Capture panorama at waypoint</span><b>F</b></div>
+    <div class="row"><span>Switch camera view</span><b>V</b></div>
+    <div class="row"><span>Look around (Navcam mode)</span><b>Drag mouse</b></div>
+    <div class="row"><span>Toggle this help</span><b>H</b></div>
+    <p style="color:var(--dim);font-size:12px;margin-top:14px;">บนมือถือ/แท็บเล็ต: ใช้จอยสติ๊กซ้ายขับ+เลี้ยว ปุ่ม E/F ด้านขวาใช้เครื่องมือ/ถ่ายภาพ ปุ่ม ⚡ เร่งเครื่อง และลากนิ้วบนหน้าจอเพื่อมองรอบ (โหมด Navcam)</p>
+    <p style="color:var(--dim);font-size:12px;margin-top:8px;">กด H อีกครั้งเพื่อปิด และกลับไปควบคุมหุ่นยนต์</p>
+  </div>
+</div>
+
+<!-- ================= DEBRIEF ================= -->
+<div id="debrief">
+  <div class="box">
+    <h2>MISSION COMPLETE</h2>
+    <div class="rank" id="debrief-rank">RANK: —</div>
+    <div class="score" id="debrief-score">0 PTS</div>
+    <div class="stat"><span>Rover</span><b id="debrief-rover">—</b></div>
+    <div class="stat"><span>Difficulty</span><b id="debrief-difficulty">—</b></div>
+    <div class="stat"><span>Sols Elapsed</span><b id="debrief-sols">—</b></div>
+    <div class="stat"><span>Samples Collected</span><b id="debrief-samples">—</b></div>
+    <div class="stat"><span>Panoramas Captured</span><b id="debrief-photos">—</b></div>
+    <div class="btns">
+      <button class="btn ghost" id="btn-restart-same">ภารกิจใหม่ (หุ่นยนต์เดิม)</button>
+      <button class="btn" id="btn-restart-menu">กลับสู่เมนู</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const PLANETS = {
+  mars: {
+    key:'mars', name:'ดาวอังคาร', label:'MARS',
+    skyDay:0xd98a5f, skyNight:0x0d0705, fogDay:0xcf9a6e, fogNight:0x140a06,
+    groundDay:0xa8532b, groundNight:0x2c130a,
+    heightScale:3.4, sunIntensity:1.35, hasAtmosphere:true, hasDustStorm:true,
+    dayLength:100, craterCount:12, rockCount:70, rockColorA:0x8a5236, rockColorB:0x5c3a26,
+    signalDelaySec:760, gravityLabel:'0.38 g'
+  },
+  moon: {
+    key:'moon', name:'ดวงจันทร์', label:'MOON',
+    skyDay:0x05070c, skyNight:0x000000, fogDay:0x05070c, fogNight:0x000000,
+    groundDay:0x8d8d8d, groundNight:0x1a1c20,
+    heightScale:4.4, sunIntensity:1.6, hasAtmosphere:false, hasDustStorm:false,
+    dayLength:70, craterCount:20, rockCount:55, rockColorA:0x9a9a9a, rockColorB:0x6a6a6a,
+    signalDelaySec:1.28, gravityLabel:'0.16 g'
+  }
+};
+
+const ROVERS = [
+  { id:'curiosity', planet:'mars', name:'Curiosity', full:'Mars Science Laboratory (2012)',
+    power:'rtg', speed:6.2, drainRate:0.9, chargeRate:0,
+    tool:'laser', toolName:'ChemCam Laser Spectrometer', toolRange:13, toolTime:0.5, sampleValue:10,
+    color:0xC9B37E, accentColor:0xff6b4a,
+    desc:'ขับเคลื่อนด้วยพลังงานนิวเคลียร์ (RTG) ทำงานได้ตลอดวันตลอดคืน ยิงเลเซอร์วิเคราะห์แร่ธาตุจากระยะไกลได้โดยไม่ต้องเข้าใกล้',
+    stats:{speed:0.62,battery:0.9,range:0.85}},
+  { id:'perseverance', planet:'mars', name:'Perseverance', full:'Mars 2020 Rover',
+    power:'rtg', speed:5.4, drainRate:1.0, chargeRate:0,
+    tool:'drill', toolName:'Core Drill Sampler', toolRange:3.2, toolTime:1.7, sampleValue:16,
+    color:0xE7E7E2, accentColor:0x3a3a3a,
+    desc:'มีสว่านเจาะแกนหินคุณภาพสูงสำหรับเก็บตัวอย่างที่ดีที่สุด ต้องเข้าใกล้และใช้เวลาเจาะนานกว่า แต่ได้คะแนนต่อชิ้นสูงสุด',
+    stats:{speed:0.54,battery:0.9,range:0.35}},
+  { id:'sojourner', planet:'mars', name:'Sojourner', full:'Mars Pathfinder Rover (1997)',
+    power:'solar', speed:8.0, drainRate:2.6, chargeRate:9.5,
+    tool:'basic', toolName:'APXS Contact Sensor', toolRange:3.6, toolTime:0.9, sampleValue:6,
+    color:0xB8B0A0, accentColor:0x2244aa,
+    desc:'ขนาดเท่าไมโครเวฟ วิ่งเร็วและคล่องตัวที่สุด แต่แผงโซลาร์เล็กมาก แบตหมดไวและต้องพึ่งแสงแดดตลอดเวลา',
+    stats:{speed:0.80,battery:0.35,range:0.30}},
+  { id:'yutu2', planet:'moon', name:'Yutu-2', full:'Chang\'e 4 Lunar Rover',
+    power:'solar', speed:6.0, drainRate:1.8, chargeRate:7.5,
+    tool:'radar', toolName:'Lunar Penetrating Radar', toolRange:9, toolTime:0.7, sampleValue:11,
+    color:0xD8D2C4, accentColor:0xffcc55,
+    desc:'ใช้เรดาร์ตรวจใต้พื้นผิวหาแร่ธาตุที่ซ่อนอยู่ ต้องปิดระบบพักตัวช่วงกลางคืนบนดวงจันทร์ที่หนาวจัดและยาวนาน',
+    stats:{speed:0.60,battery:0.55,range:0.60}},
+  { id:'lrv', planet:'moon', name:'LRV', full:'Apollo Lunar Roving Vehicle',
+    power:'battery', speed:11.5, drainRate:1.4, chargeRate:1.2,
+    tool:'manual', toolName:'Manual Sample Bag', toolRange:3.2, toolTime:0.6, sampleValue:8,
+    color:0xD4AF37, accentColor:0xdddddd,
+    desc:'รถสำรวจของนักบินอวกาศ ไม่มีเครื่องมือวิทยาศาสตร์ในตัว แต่เร็วที่สุดและบังคับบนพื้นผิวขรุขระได้ดีเยี่ยม',
+    stats:{speed:1.0,battery:0.5,range:0.30}},
+];
+
+const DIFFICULTIES = {
+  easy: {
+    key:'easy', label:'ภารกิจฝึกหัด', tag:'EASY',
+    depositCount:4, waypointCount:2, rockMultiplier:0.7, craterMultiplier:0.7,
+    drainMultiplier:0.7, chargeMultiplier:1.3, stormTimerMultiplier:1.6, stormDurationMultiplier:0.7,
+    scoreMultiplier:0.85,
+    desc:'อุปสรรคน้อย พลังงานเหลือเฟือ เหมาะสำหรับฝึกควบคุมหุ่นยนต์'
+  },
+  normal: {
+    key:'normal', label:'ภารกิจมาตรฐาน', tag:'NORMAL',
+    depositCount:6, waypointCount:3, rockMultiplier:1, craterMultiplier:1,
+    drainMultiplier:1, chargeMultiplier:1, stormTimerMultiplier:1, stormDurationMultiplier:1,
+    scoreMultiplier:1,
+    desc:'สมดุลระหว่างความท้าทายและพลังงาน ตรงตามภารกิจจริงส่วนใหญ่'
+  },
+  hard: {
+    key:'hard', label:'ภารกิจซับซ้อน', tag:'HARD',
+    depositCount:9, waypointCount:4, rockMultiplier:1.45, craterMultiplier:1.35,
+    drainMultiplier:1.4, chargeMultiplier:0.75, stormTimerMultiplier:0.55, stormDurationMultiplier:1.35,
+    scoreMultiplier:1.3,
+    desc:'พื้นที่เต็มไปด้วยหิน หลุมอุกกาบาต และพายุฝุ่นที่ถี่ขึ้น พลังงานหายากกว่าเดิม'
+  }
+};
+
+/* ============================================================
+   GLOBAL STATE
+   ============================================================ */
+let scene, camera, renderer, clock;
+let sunLight, ambLight, hemiLight, starPoints;
+let planet = null, roverCfg = null;
+let terrainMesh = null;
+let craters = [], rocks = [], deposits = [], waypoints = [];
+let roverGroup = null, mastAnchor = null;
+let keys = {};
+let mouseDown=false, lastMouseX=0, lastMouseY=0, yawOffset=0, pitchOffset=0;
+let viewMode = 'chase'; // 'chase' | 'nav'
+let paused = false, gameState = 'menu-planet'; // menu-planet, menu-rover, playing, debrief
+let sunAngle = 1.15; // start mid-morning
+let sol = 1;
+let battery = 100;
+let score = 0;
+let samplesCollected = 0;
+let photosTaken = 0;
+let storm = { active:false, timer: 40, duration:0 };
+let toolHoldTime = 0;
+let boosting=false;
+let difficulty = DIFFICULTIES.normal;
+let selectedPlanetKey = null, selectedRoverId = null;
+let missionSampleTarget = 6, missionPhotoTarget = 3;
+let touchInput = { forward:0, turn:0, boost:false };
+let particleSystems = [];
+let sunGlowSprite = null;
+let wheelDustTimer = 0;
+
+const WORLD_SIZE = 340;
+const SAFE_ZONE = 22;
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+function rand(a,b){ return a + Math.random()*(b-a); }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function dist2(x1,z1,x2,z2){ const dx=x1-x2, dz=z1-z2; return Math.sqrt(dx*dx+dz*dz); }
+
+function getHeight(x,z){
+  let h = Math.sin(x*0.045)*2 + Math.cos(z*0.05)*2 + Math.sin((x+z)*0.021)*2.4 + Math.sin(x*0.11)*Math.cos(z*0.09)*0.8;
+  h *= planet.heightScale/3;
+  for(const c of craters){
+    const d = dist2(x,z,c.x,c.z);
+    if(d<c.radius){
+      const t = 1-d/c.radius;
+      const s = t*t*(3-2*t);
+      h -= c.depth*s;
+    }
+  }
+  return h;
+}
+function craterSlip(x,z){
+  let maxT=0;
+  for(const c of craters){
+    const d=dist2(x,z,c.x,c.z);
+    if(d<c.radius){ const t=1-d/c.radius; if(t>maxT) maxT=t; }
+  }
+  return maxT;
+}
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>el.classList.remove('show'), 2600);
+}
+
+function formatDelay(sec){
+  if(sec<10) return sec.toFixed(2)+'s';
+  const m = Math.floor(sec/60), s = Math.round(sec%60);
+  if(m<=0) return s+'s';
+  return `${m}m ${s}s`;
+}
+function fakeCoord(x,z){
+  const lat = (z/ (WORLD_SIZE/2) * 45).toFixed(2);
+  const lon = (x/ (WORLD_SIZE/2) * 45).toFixed(2);
+  return `${Math.abs(lon)}°${x>=0?'E':'W'} ${Math.abs(lat)}°${z>=0?'N':'S'}`;
+}
+
+/* ============================================================
+   THREE.JS SETUP
+   ============================================================ */
+function isTouchDevice(){
+  return ('ontouchstart' in window) || navigator.maxTouchPoints>0 || window.matchMedia('(pointer: coarse)').matches;
+}
+
+function makeGlowTexture(){
+  const size=128;
+  const cvs=document.createElement('canvas'); cvs.width=cvs.height=size;
+  const ctx=cvs.getContext('2d');
+  const grad = ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  grad.addColorStop(0,'rgba(255,246,220,1)');
+  grad.addColorStop(0.35,'rgba(255,222,160,0.55)');
+  grad.addColorStop(1,'rgba(255,222,160,0)');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,size,size);
+  return new THREE.CanvasTexture(cvs);
+}
+
+function initThree(){
+  const container = document.getElementById('canvas-container');
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  container.appendChild(renderer.domElement);
+
+  hemiLight = new THREE.HemisphereLight(0xffffff, 0x332211, 0.5);
+  scene.add(hemiLight);
+  ambLight = new THREE.AmbientLight(0xffffff, 0.25);
+  scene.add(ambLight);
+  sunLight = new THREE.DirectionalLight(0xfff2df, 1.2);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(1024,1024);
+  sunLight.shadow.camera.left=-60; sunLight.shadow.camera.right=60;
+  sunLight.shadow.camera.top=60; sunLight.shadow.camera.bottom=-60;
+  sunLight.shadow.camera.far=300;
+  sunLight.shadow.bias = -0.0015;
+  scene.add(sunLight);
+  scene.add(sunLight.target);
+
+  sunGlowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false
+  }));
+  sunGlowSprite.scale.set(70,70,1);
+  scene.add(sunGlowSprite);
+
+  clock = new THREE.Clock();
+
+  window.addEventListener('resize', onResize);
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  renderer.domElement.addEventListener('mousedown', (e)=>{ mouseDown=true; lastMouseX=e.clientX; lastMouseY=e.clientY; });
+  window.addEventListener('mouseup', ()=> mouseDown=false);
+  window.addEventListener('mousemove', onMouseMove);
+
+  initTouchControls();
+
+  animate();
+}
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+function onMouseMove(e){
+  if(!mouseDown || viewMode!=='nav') return;
+  const dx = e.clientX-lastMouseX, dy = e.clientY-lastMouseY;
+  lastMouseX=e.clientX; lastMouseY=e.clientY;
+  yawOffset -= dx*0.004;
+  pitchOffset = clamp(pitchOffset - dy*0.004, -0.6, 0.6);
+}
+function onKeyDown(e){
+  keys[e.code]=true;
+  if(gameState==='playing'){
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    if(e.code==='KeyV') toggleView();
+    if(e.code==='KeyH') toggleHelp();
+    if(e.code==='KeyE') useTool();
+    if(e.code==='KeyF') capturePhoto();
+  }
+}
+function onKeyUp(e){ keys[e.code]=false; }
+
+/* ---------- touch controls ---------- */
+function initTouchControls(){
+  const touchActive = isTouchDevice();
+  if(!touchActive) return;
+  document.body.classList.add('touch-mode');
+  document.getElementById('touch-controls').style.display = 'block';
+  document.getElementById('touch-look-layer').style.display = 'block';
+
+  // joystick
+  const base = document.getElementById('joystick-base');
+  const knob = document.getElementById('joystick-knob');
+  let joyId = null, baseRect = null;
+  const JOY_RADIUS = 52;
+
+  function joyMove(clientX, clientY){
+    if(!baseRect) return;
+    const cx = baseRect.left + baseRect.width/2;
+    const cy = baseRect.top + baseRect.height/2;
+    let dx = clientX-cx, dy = clientY-cy;
+    const dist = Math.hypot(dx,dy);
+    if(dist > JOY_RADIUS){ dx = dx/dist*JOY_RADIUS; dy = dy/dist*JOY_RADIUS; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    const nx = dx/JOY_RADIUS, ny = dy/JOY_RADIUS;
+    touchInput.forward = Math.abs(ny)>0.15 ? -ny : 0;
+    touchInput.turn = Math.abs(nx)>0.15 ? -nx : 0;
+  }
+  function joyReset(){
+    knob.style.transform = 'translate(0px,0px)';
+    touchInput.forward = 0; touchInput.turn = 0; joyId = null;
+  }
+  base.addEventListener('touchstart', (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    const t = e.changedTouches[0];
+    joyId = t.identifier;
+    baseRect = base.getBoundingClientRect();
+    joyMove(t.clientX, t.clientY);
+  }, {passive:false});
+  base.addEventListener('touchmove', (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    for(const t of e.changedTouches){ if(t.identifier===joyId) joyMove(t.clientX,t.clientY); }
+  }, {passive:false});
+  base.addEventListener('touchend', (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    for(const t of e.changedTouches){ if(t.identifier===joyId) joyReset(); }
+  }, {passive:false});
+  base.addEventListener('touchcancel', (e)=>{ e.stopPropagation(); joyReset(); });
+
+  // action buttons
+  function bindTap(id, fn){
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); el.classList.add('active'); fn(); }, {passive:false});
+    el.addEventListener('touchend', (e)=>{ e.stopPropagation(); el.classList.remove('active'); }, {passive:false});
+  }
+  bindTap('tbtn-tool', useTool);
+  bindTap('tbtn-photo', capturePhoto);
+  bindTap('tbtn-view', toggleView);
+  bindTap('tbtn-help', toggleHelp);
+
+  const boostBtn = document.getElementById('tbtn-boost');
+  boostBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); boostBtn.classList.add('active'); touchInput.boost=true; }, {passive:false});
+  boostBtn.addEventListener('touchend', (e)=>{ e.stopPropagation(); boostBtn.classList.remove('active'); touchInput.boost=false; }, {passive:false});
+  boostBtn.addEventListener('touchcancel', (e)=>{ e.stopPropagation(); boostBtn.classList.remove('active'); touchInput.boost=false; });
+
+  // look-drag layer (navcam)
+  const lookLayer = document.getElementById('touch-look-layer');
+  let lookId = null, lookX=0, lookY=0;
+  lookLayer.addEventListener('touchstart', (e)=>{
+    const t = e.changedTouches[0];
+    lookId = t.identifier; lookX=t.clientX; lookY=t.clientY;
+  }, {passive:true});
+  lookLayer.addEventListener('touchmove', (e)=>{
+    if(viewMode!=='nav') return;
+    for(const t of e.changedTouches){
+      if(t.identifier===lookId){
+        const dx=t.clientX-lookX, dy=t.clientY-lookY;
+        lookX=t.clientX; lookY=t.clientY;
+        yawOffset -= dx*0.005;
+        pitchOffset = clamp(pitchOffset - dy*0.005, -0.6, 0.6);
+      }
+    }
+  }, {passive:true});
+  lookLayer.addEventListener('touchend', (e)=>{
+    for(const t of e.changedTouches){ if(t.identifier===lookId) lookId=null; }
+  });
+}
+
+/* ============================================================
+   WORLD GENERATION
+   ============================================================ */
+function clearWorld(){
+  if(terrainMesh){
+    scene.remove(terrainMesh);
+    if(terrainMesh.material.map) terrainMesh.material.map.dispose();
+    terrainMesh.material.dispose();
+    terrainMesh.geometry.dispose();
+  }
+  [roverGroup, starPoints].forEach(o=>{ if(o) scene.remove(o); });
+  rocks.forEach(r=>scene.remove(r.mesh));
+  deposits.forEach(d=>scene.remove(d.mesh));
+  waypoints.forEach(w=>scene.remove(w.mesh));
+  particleSystems.forEach(ps=>{ scene.remove(ps.points); ps.points.geometry.dispose(); ps.points.material.dispose(); });
+  particleSystems = [];
+  rocks=[]; deposits=[]; waypoints=[]; craters=[];
+}
+
+function makeGroundTexture(p){
+  const size = 256;
+  const cvs = document.createElement('canvas'); cvs.width=size; cvs.height=size;
+  const ctx = cvs.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,size,size);
+  for(let i=0;i<3200;i++){
+    const x=Math.random()*size, y=Math.random()*size, r=Math.random()*1.6+0.3;
+    const shade = Math.random()*70+185;
+    ctx.fillStyle = `rgba(${shade},${shade},${shade},${Math.random()*0.5+0.3})`;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  for(let i=0;i<70;i++){
+    const x=Math.random()*size, y=Math.random()*size, r=Math.random()*14+4;
+    const shade = Math.random()*60+150;
+    ctx.fillStyle = `rgba(${shade},${shade},${shade},0.22)`;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(WORLD_SIZE/14, WORLD_SIZE/14);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+
+function buildTerrain(){
+  const segs = 120;
+  const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, segs, segs);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    pos.setY(i, getHeight(x,z));
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  const groundTex = makeGroundTexture(planet);
+  const mat = new THREE.MeshStandardMaterial({ color: planet.groundDay, map: groundTex, roughness:1, metalness:0, flatShading:true });
+  terrainMesh = new THREE.Mesh(geo, mat);
+  terrainMesh.receiveShadow = true;
+  scene.add(terrainMesh);
+}
+
+function generateCraters(){
+  craters = [];
+  const count = Math.round(planet.craterCount*difficulty.craterMultiplier);
+  for(let i=0;i<count;i++){
+    let x,z,tries=0;
+    do{ x=rand(-WORLD_SIZE/2+10, WORLD_SIZE/2-10); z=rand(-WORLD_SIZE/2+10, WORLD_SIZE/2-10); tries++; }
+    while(dist2(x,0,z,0) < SAFE_ZONE && tries<20);
+    craters.push({ x, z, radius: rand(6,17), depth: rand(1.4,3.6) });
+  }
+}
+
+function makeRockMesh(){
+  const geo = new THREE.DodecahedronGeometry(rand(0.7,2.3), 0);
+  const c = Math.random()<0.5 ? planet.rockColorA : planet.rockColorB;
+  const mat = new THREE.MeshStandardMaterial({ color:c, flatShading:true, roughness:1 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.set(rand(0,Math.PI),rand(0,Math.PI),rand(0,Math.PI));
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  return mesh;
+}
+
+function generateRocks(){
+  const count = Math.round(planet.rockCount*difficulty.rockMultiplier);
+  for(let i=0;i<count;i++){
+    let x,z,tries=0;
+    do{ x=rand(-WORLD_SIZE/2+8, WORLD_SIZE/2-8); z=rand(-WORLD_SIZE/2+8, WORLD_SIZE/2-8); tries++; }
+    while((dist2(x,0,z,0) < SAFE_ZONE || craterSlip(x,z)>0.8) && tries<20);
+    const mesh = makeRockMesh();
+    const y = getHeight(x,z);
+    mesh.position.set(x, y + mesh.geometry.parameters.radius*0.4, z);
+    scene.add(mesh);
+    rocks.push({ mesh, x, z, radius: mesh.geometry.parameters.radius*0.85 });
+  }
+}
+
+function makeDepositMesh(){
+  const geo = new THREE.OctahedronGeometry(0.9, 0);
+  const mat = new THREE.MeshStandardMaterial({ color:0x6fe7dd, emissive:0x1c9c94, emissiveIntensity:0.9, roughness:0.3 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+function generateDeposits(){
+  for(let i=0;i<missionSampleTarget;i++){
+    let x,z,tries=0;
+    do{ x=rand(-WORLD_SIZE/2+15, WORLD_SIZE/2-15); z=rand(-WORLD_SIZE/2+15, WORLD_SIZE/2-15); tries++; }
+    while(dist2(x,0,z,0) < SAFE_ZONE+8 && tries<20);
+    const mesh = makeDepositMesh();
+    const y = getHeight(x,z);
+    mesh.position.set(x, y+0.9, z);
+    scene.add(mesh);
+    deposits.push({ mesh, x, z, collected:false, baseY:y+0.9 });
+  }
+}
+
+function makeFlagMesh(){
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,3.2,8), new THREE.MeshStandardMaterial({color:0xcccccc}));
+  pole.position.y = 1.6;
+  const flag = new THREE.Mesh(new THREE.ConeGeometry(0.65,1.1,4), new THREE.MeshStandardMaterial({color:0xffb454, emissive:0x552200, emissiveIntensity:0.4}));
+  flag.rotation.z = Math.PI/2;
+  flag.position.set(0.55, 2.9, 0);
+  g.add(pole, flag);
+  return g;
+}
+function generateWaypoints(){
+  const n = missionPhotoTarget;
+  for(let i=0;i<n;i++){
+    const ang = (i/n)*Math.PI*2 + rand(-0.3,0.3);
+    const r = rand(WORLD_SIZE*0.28, WORLD_SIZE*0.42);
+    const x = Math.cos(ang)*r, z = Math.sin(ang)*r;
+    const mesh = makeFlagMesh();
+    const y = getHeight(x,z);
+    mesh.position.set(x,y,z);
+    scene.add(mesh);
+    waypoints.push({ mesh, x, z, photographed:false });
+  }
+}
+
+function buildStars(){
+  const count = 1800;
+  const g = new THREE.BufferGeometry();
+  const positions = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const r = 380;
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(rand(-1,0.15));
+    positions[i*3] = r*Math.sin(phi)*Math.cos(theta);
+    positions[i*3+1] = Math.abs(r*Math.cos(phi))+20;
+    positions[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  const m = new THREE.PointsMaterial({ color:0xffffff, size:1.3, sizeAttenuation:false, transparent:true, opacity:0.85 });
+  starPoints = new THREE.Points(g,m);
+  scene.add(starPoints);
+}
+
+/* ---------- particle FX ---------- */
+function spawnParticles(opts){
+  const {position, color=0xaaaaaa, count=10, spread=1.0, speed=1.2, size=0.18, lifetime=0.7, gravity=-2.2, upBias=0.6} = opts;
+  const positions = new Float32Array(count*3);
+  const velocities = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    positions[i*3]=position.x; positions[i*3+1]=position.y; positions[i*3+2]=position.z;
+    const a = Math.random()*Math.PI*2;
+    const r = Math.random()*spread;
+    velocities[i*3] = Math.cos(a)*r*speed;
+    velocities[i*3+1] = Math.random()*speed*upBias + 0.15;
+    velocities[i*3+2] = Math.sin(a)*r*speed;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  const mat = new THREE.PointsMaterial({ color, size, transparent:true, opacity:0.9, depthWrite:false });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+  particleSystems.push({ points, velocities, age:0, lifetime, gravity, baseOpacity:0.9 });
+}
+function updateParticles(delta){
+  for(let i=particleSystems.length-1;i>=0;i--){
+    const ps = particleSystems[i];
+    ps.age += delta;
+    const t = ps.age/ps.lifetime;
+    if(t>=1){
+      scene.remove(ps.points);
+      ps.points.geometry.dispose(); ps.points.material.dispose();
+      particleSystems.splice(i,1); continue;
+    }
+    const pos = ps.points.geometry.attributes.position;
+    for(let j=0;j<pos.count;j++){
+      const vy = ps.velocities[j*3+1] + ps.gravity*ps.age;
+      pos.setX(j, pos.getX(j)+ps.velocities[j*3]*delta);
+      pos.setY(j, pos.getY(j)+vy*delta);
+      pos.setZ(j, pos.getZ(j)+ps.velocities[j*3+2]*delta);
+    }
+    pos.needsUpdate = true;
+    ps.points.material.opacity = ps.baseOpacity*(1-t);
+  }
+}
+
+/* ---------- rover model ---------- */
+function addWheel(group, x,y,z, radius){
+  const wheelGroup = new THREE.Group();
+  wheelGroup.position.set(x,y,z);
+  wheelGroup.rotation.x = Math.PI/2; // orients cylinder axis along the axle (sideways), tread facing outward
+
+  const tire = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, radius*0.62, 18),
+    new THREE.MeshStandardMaterial({ color:0x161616, roughness:0.95, metalness:0.05 })
+  );
+  tire.castShadow = true; tire.receiveShadow = true;
+  wheelGroup.add(tire);
+
+  const hub = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius*0.42, radius*0.42, radius*0.68, 12),
+    new THREE.MeshStandardMaterial({ color:0xaeb4bb, roughness:0.35, metalness:0.85 })
+  );
+  wheelGroup.add(hub);
+
+  for(let i=0;i<6;i++){
+    const spoke = new THREE.Mesh(
+      new THREE.BoxGeometry(radius*1.5, radius*0.08, radius*0.14),
+      new THREE.MeshStandardMaterial({ color:0x888e96, roughness:0.4, metalness:0.75 })
+    );
+    spoke.rotation.y = (i/6)*Math.PI*2;
+    wheelGroup.add(spoke);
+  }
+  group.add(wheelGroup);
+  return wheelGroup;
+}
+
+function addHeadlights(g, fx, fy, fz, spread){
+  const lensMat = new THREE.MeshStandardMaterial({ color:0xfff6e0, emissive:0xfff2c0, emissiveIntensity:0.25, roughness:0.3 });
+  const lensL = new THREE.Mesh(new THREE.SphereGeometry(0.09,10,10), lensMat);
+  lensL.position.set(fx, fy, fz+spread);
+  const lensR = new THREE.Mesh(new THREE.SphereGeometry(0.09,10,10), lensMat.clone());
+  lensR.position.set(fx, fy, fz-spread);
+  g.add(lensL, lensR);
+
+  const spotL = new THREE.SpotLight(0xfff0d0, 0, 24, Math.PI/6.5, 0.55, 1.6);
+  spotL.position.set(fx, fy, fz+spread);
+  spotL.target.position.set(fx+3, fy-0.6, fz+spread);
+  const spotR = new THREE.SpotLight(0xfff0d0, 0, 24, Math.PI/6.5, 0.55, 1.6);
+  spotR.position.set(fx, fy, fz-spread);
+  spotR.target.position.set(fx+3, fy-0.6, fz-spread);
+  g.add(spotL, spotL.target, spotR, spotR.target);
+
+  g.userData.headlights = [spotL, spotR];
+  g.userData.headlightLenses = [lensL, lensR];
+}
+
+function buildRover(cfg){
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness:0.6, metalness:0.35 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: cfg.accentColor, roughness:0.5, metalness:0.3 });
+  const darkMat = new THREE.MeshStandardMaterial({ color:0x232323, roughness:0.7 });
+
+  if(cfg.id==='lrv'){
+    // open-frame buggy
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6,0.25,1.6), bodyMat);
+    chassis.position.y = 0.9; chassis.castShadow=true;
+    g.add(chassis);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,1.3), accentMat);
+    seat.position.set(-0.4,1.25,0); seat.castShadow=true;
+    g.add(seat);
+    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>addWheel(g,p[0],p[1],p[2],0.55));
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,2.2,6), darkMat);
+    antenna.position.set(-1.0,2.0,0.6); antenna.rotation.z=0.3;
+    g.add(antenna);
+    mastAnchor = { x:0, y:1.7, z:0.2 };
+    addHeadlights(g, 1.3, 0.95, 0, 0.62);
+  } else {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.9,1.6), bodyMat);
+    body.position.y = 1.05; body.castShadow = true;
+    g.add(body);
+    [[1.0,0.5,0.85],[1.0,0.5,-0.85],[0,0.5,0.9],[0,0.5,-0.9],[-1.0,0.5,0.85],[-1.0,0.5,-0.85]].forEach(p=>addWheel(g,p[0],p[1],p[2],0.42));
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.14,1.3,0.14), darkMat);
+    mast.position.set(0.3,2.1,0); mast.castShadow=true;
+    g.add(mast);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45,0.22,0.35), accentMat);
+    head.position.set(0.3,2.7,0); head.castShadow=true;
+    g.add(head);
+    const eyeMat = new THREE.MeshStandardMaterial({ color:0x111318, roughness:0.2, metalness:0.5 });
+    const eyeL = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.12,12), eyeMat);
+    eyeL.rotation.x = Math.PI/2; eyeL.position.set(0.42,2.78,0.13);
+    const eyeR = eyeL.clone(); eyeR.position.z = -0.13;
+    g.add(eyeL, eyeR);
+    mastAnchor = { x:0.3, y:2.8, z:0 };
+
+    const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.02,1.5,6), darkMat);
+    whip.position.set(-0.65,1.95,0.55); whip.rotation.z = 0.18;
+    g.add(whip);
+    const dish = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26,0.05,0.13,16),
+      new THREE.MeshStandardMaterial({ color:0xd8d8d8, metalness:0.6, roughness:0.35, side:THREE.DoubleSide })
+    );
+    dish.rotation.x = Math.PI/2.3;
+    dish.position.set(-0.55,2.1,-0.5);
+    g.add(dish);
+
+    if(cfg.power==='rtg'){
+      const rtg = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.9,10), darkMat);
+      rtg.rotation.z = Math.PI/2;
+      rtg.position.set(-1.25,1.1,0);
+      g.add(rtg);
+      const skirt = new THREE.Mesh(
+        new THREE.BoxGeometry(2.3,0.16,1.68),
+        new THREE.MeshStandardMaterial({ color:0xC9A227, roughness:0.4, metalness:0.6 })
+      );
+      skirt.position.set(0,0.66,0);
+      g.add(skirt);
+    }
+    if(cfg.power==='solar'){
+      if(cfg.id==='sojourner'){
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.06,1.2), new THREE.MeshStandardMaterial({color:0x1c3f6e,metalness:0.6,roughness:0.3}));
+        panel.position.set(0,1.55,0);
+        g.add(panel);
+      } else {
+        const pL = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.05,0.9), new THREE.MeshStandardMaterial({color:0x1c3f6e,metalness:0.6,roughness:0.3}));
+        pL.position.set(-0.2,1.6,1.05); pL.rotation.x = -0.15;
+        const pR = pL.clone(); pR.position.z=-1.05; pR.rotation.x=0.15;
+        g.add(pL,pR);
+      }
+    }
+    if(cfg.id==='curiosity'){
+      const lens = new THREE.Mesh(new THREE.SphereGeometry(0.1,10,10), new THREE.MeshStandardMaterial({color:0xff3300, emissive:0x991100, emissiveIntensity:0.7}));
+      lens.position.set(0.3,3.0,0);
+      g.add(lens);
+    }
+    if(cfg.id==='perseverance'){
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(1.1,0.14,0.14), darkMat);
+      arm.position.set(1.5,0.9,0.5); arm.rotation.y=0.3;
+      const drill = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.4,8), accentMat);
+      drill.position.set(2.05,0.7,0.6);
+      g.add(arm,drill);
+    }
+    if(cfg.id==='yutu2'){
+      const pL2 = new THREE.Mesh(new THREE.BoxGeometry(1.2,0.05,1.0), new THREE.MeshStandardMaterial({color:0x223355,metalness:0.6,roughness:0.3}));
+      pL2.position.set(0.3,2.2,1.15); pL2.rotation.x=-0.5;
+      const pR2 = pL2.clone(); pR2.position.z=-1.15; pR2.rotation.x=0.5;
+      g.add(pL2,pR2);
+    }
+    addHeadlights(g, 1.15, 0.62, 0, 0.68);
+  }
+
+  // The body was built with its instruments facing local +X. The game's forward-motion
+  // convention is local -Z, so wrap everything in an outer group rotated 90deg to make
+  // the visual front match the direction the rover actually drives.
+  mastAnchor = { x: mastAnchor.z, y: mastAnchor.y, z: -mastAnchor.x };
+  g.rotation.y = Math.PI/2;
+  const outer = new THREE.Group();
+  outer.add(g);
+  outer.userData.headlights = g.userData.headlights || null;
+  outer.userData.headlightLenses = g.userData.headlightLenses || null;
+  return outer;
+}
+
+/* ============================================================
+   MISSION LIFECYCLE
+   ============================================================ */
+function startMission(planetKey, roverId, difficultyKey){
+  planet = PLANETS[planetKey];
+  roverCfg = ROVERS.find(r=>r.id===roverId);
+  difficulty = DIFFICULTIES[difficultyKey] || DIFFICULTIES.normal;
+  missionSampleTarget = difficulty.depositCount;
+  missionPhotoTarget = difficulty.waypointCount;
+
+  clearWorld();
+  generateCraters();
+  buildTerrain();
+  generateRocks();
+  generateDeposits();
+  generateWaypoints();
+  buildStars();
+
+  roverGroup = buildRover(roverCfg);
+  const startY = getHeight(0,0);
+  roverGroup.position.set(0, startY, 0);
+  scene.add(roverGroup);
+
+  battery = 100; score = 0; samplesCollected = 0; photosTaken = 0; sol = 1;
+  sunAngle = 1.15;
+  storm.active = false; storm.timer = rand(35,60)*difficulty.stormTimerMultiplier;
+  viewMode = 'chase'; yawOffset = 0; pitchOffset = 0;
+  touchInput = { forward:0, turn:0, boost:false };
+  wheelDustTimer = 0;
+
+  scene.fog = new THREE.Fog(planet.fogDay, 30, planet.hasAtmosphere ? 170 : 260);
+
+  document.getElementById('hud-rover-name').textContent = roverCfg.name;
+  document.getElementById('hud-rover-full').textContent = roverCfg.full;
+  document.getElementById('hud-difficulty').textContent = difficulty.tag;
+  document.getElementById('obj-samples').classList.remove('done');
+  document.getElementById('obj-photos').classList.remove('done');
+  document.getElementById('obj-samples').querySelector('span:last-child').textContent = `0/${missionSampleTarget}`;
+  document.getElementById('obj-photos').querySelector('span:last-child').textContent = `0/${missionPhotoTarget}`;
+
+  document.getElementById('hud').style.display = 'block';
+  gameState = 'playing';
+  toast(`ปล่อยหุ่นยนต์ ${roverCfg.name} ลงสู่พื้นผิว${planet.name}แล้ว (${difficulty.label})`);
+}
+
+function useTool(){
+  if(gameState!=='playing') return;
+  const cfg = roverCfg;
+  let best=null, bestD=Infinity;
+  for(const d of deposits){
+    if(d.collected) continue;
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, d.x, d.z);
+    if(dd < cfg.toolRange && dd<bestD){ best=d; bestD=dd; }
+  }
+  if(!best){ toast('ไม่พบตัวอย่างในระยะเครื่องมือ'); return; }
+  best.collected = true;
+  scene.remove(best.mesh);
+  spawnParticles({ position:best.mesh.position, color:0x8ff5ec, count:16, spread:1.4, speed:2.2, size:0.14, lifetime:0.6, gravity:-1.5, upBias:1.0 });
+  samplesCollected++;
+  const gained = Math.round(cfg.sampleValue*difficulty.scoreMultiplier);
+  score += gained;
+  document.getElementById('obj-samples').querySelector('span:last-child').textContent = `${samplesCollected}/${missionSampleTarget}`;
+  if(samplesCollected===missionSampleTarget) document.getElementById('obj-samples').classList.add('done');
+  toast(`${cfg.toolName} · เก็บตัวอย่างสำเร็จ +${gained}`);
+  checkMissionComplete();
+}
+
+function capturePhoto(){
+  if(gameState!=='playing') return;
+  let best=null, bestD=Infinity;
+  for(const w of waypoints){
+    if(w.photographed) continue;
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, w.x, w.z);
+    if(dd < 11 && dd<bestD){ best=w; bestD=dd; }
+  }
+  if(!best){ toast('ไม่มีจุดพาโนรามาในระยะนี้'); return; }
+  best.photographed = true;
+  const gained = Math.round(20*difficulty.scoreMultiplier);
+  photosTaken++;
+  score += gained;
+  const flash = document.getElementById('camera-flash');
+  flash.classList.remove('flash'); void flash.offsetWidth; flash.classList.add('flash');
+  document.getElementById('obj-photos').querySelector('span:last-child').textContent = `${photosTaken}/${missionPhotoTarget}`;
+  if(photosTaken===missionPhotoTarget) document.getElementById('obj-photos').classList.add('done');
+  toast(`บันทึกภาพพาโนรามาแล้ว +${gained}`);
+  checkMissionComplete();
+}
+
+function checkMissionComplete(){
+  if(samplesCollected>=missionSampleTarget && photosTaken>=missionPhotoTarget){
+    showDebrief();
+  }
+}
+
+function showDebrief(){
+  gameState = 'debrief';
+  document.getElementById('hud').style.display='none';
+  let rank = 'Junior Technician';
+  if(score>=170) rank='Principal Investigator';
+  else if(score>=120) rank='Mission Specialist';
+  else if(score>=80) rank='Field Geologist';
+  document.getElementById('debrief-rank').textContent = 'RANK: '+rank.toUpperCase();
+  document.getElementById('debrief-score').textContent = score+' PTS';
+  document.getElementById('debrief-rover').textContent = roverCfg.name+' — '+planet.name;
+  document.getElementById('debrief-sols').textContent = sol;
+  document.getElementById('debrief-samples').textContent = samplesCollected+'/'+missionSampleTarget;
+  document.getElementById('debrief-photos').textContent = photosTaken+'/'+missionPhotoTarget;
+  document.getElementById('debrief-difficulty').textContent = difficulty.label;
+  document.getElementById('debrief').style.display='flex';
+}
+
+function toggleView(){
+  viewMode = viewMode==='chase' ? 'nav' : 'chase';
+  document.getElementById('view-mode-label').textContent = viewMode==='chase' ? 'CHASE' : 'NAVCAM';
+  document.getElementById('crosshair').style.display = viewMode==='nav' ? 'block':'none';
+}
+function toggleHelp(){
+  const el = document.getElementById('help');
+  el.style.display = el.style.display==='flex' ? 'none' : 'flex';
+}
+
+/* ============================================================
+   MAIN LOOP
+   ============================================================ */
+function updateSky(){
+  const elevation = Math.sin(sunAngle);
+  let t = clamp((elevation+1)/2, 0, 1);
+  let stormFactor = (planet.hasDustStorm && storm.active) ? 0.55 : 0;
+
+  const skyDay = new THREE.Color(planet.skyDay), skyNight = new THREE.Color(planet.skyNight);
+  const fogDay = new THREE.Color(planet.fogDay), fogNight = new THREE.Color(planet.fogNight);
+  const groundDay = new THREE.Color(planet.groundDay), groundNight = new THREE.Color(planet.groundNight);
+  const stormColor = new THREE.Color(0x7a4a2a);
+
+  const skyColor = skyNight.clone().lerp(skyDay, t).lerp(stormColor, stormFactor);
+  const fogColor = fogNight.clone().lerp(fogDay, t).lerp(stormColor, stormFactor);
+  const groundColor = groundNight.clone().lerp(groundDay, t);
+
+  scene.background = skyColor;
+  scene.fog.color = fogColor;
+  scene.fog.near = 30;
+  scene.fog.far = (planet.hasAtmosphere ? 170 : 260) * (storm.active?0.35:1);
+  terrainMesh.material.color = groundColor;
+
+  const sunDist = 250;
+  sunLight.position.set(Math.cos(sunAngle)*sunDist, Math.max(Math.sin(sunAngle),0.02)*sunDist, 60);
+  sunLight.target.position.set(roverGroup.position.x, roverGroup.position.y, roverGroup.position.z);
+  sunLight.intensity = Math.max(0.05, elevation) * planet.sunIntensity * (storm.active?0.4:1);
+  ambLight.intensity = 0.15 + (1-t)*0.12;
+  hemiLight.intensity = 0.25 + t*0.35;
+
+  if(starPoints){
+    const starOpacity = planet.hasAtmosphere ? (1-t)*0.8 : (0.4 + (1-t)*0.5);
+    starPoints.material.opacity = starOpacity;
+    starPoints.position.copy(roverGroup.position);
+  }
+
+  if(sunGlowSprite){
+    sunGlowSprite.position.copy(sunLight.position).add(roverGroup.position);
+    sunGlowSprite.material.opacity = clamp(elevation*1.3,0,1) * (storm.active?0.35:1);
+  }
+
+  if(roverGroup && roverGroup.userData.headlights){
+    const nightAmt = clamp(1 - t*1.5, 0, 1);
+    const shouldLight = nightAmt>0.1 || (planet.hasDustStorm && storm.active);
+    const targetIntensity = shouldLight ? (1.5 + ((planet.hasDustStorm && storm.active)?0.7:0)) : 0;
+    roverGroup.userData.headlights.forEach(l=>{ l.intensity = lerp(l.intensity, targetIntensity, 0.08); });
+    if(roverGroup.userData.headlightLenses){
+      roverGroup.userData.headlightLenses.forEach(m=>{ m.material.emissiveIntensity = shouldLight ? 1.1 : 0.25; });
+    }
+  }
+
+  const stormOverlay = document.getElementById('storm-overlay');
+  if(stormOverlay) stormOverlay.classList.toggle('active', !!(planet.hasDustStorm && storm.active));
+}
+
+function updateBattery(delta, moving){
+  const cfg = roverCfg;
+  let drain = cfg.drainRate*delta*(moving?1:0.4)*(boosting?1.7:1)*difficulty.drainMultiplier;
+  if(cfg.power==='rtg'){
+    battery -= drain*0.25;
+  } else if(cfg.power==='solar'){
+    let sunFactor = Math.max(0, Math.sin(sunAngle));
+    if(planet.hasDustStorm && storm.active) sunFactor *= 0.12;
+    const charge = cfg.chargeRate*sunFactor*delta*difficulty.chargeMultiplier;
+    battery += charge - drain;
+  } else {
+    const trickle = cfg.chargeRate*Math.max(0,Math.sin(sunAngle))*delta*0.3*difficulty.chargeMultiplier;
+    battery += trickle - drain;
+  }
+  battery = clamp(battery,0,100);
+}
+
+function updateStorm(delta){
+  if(!planet.hasDustStorm) return;
+  if(!storm.active){
+    storm.timer -= delta;
+    if(storm.timer<=0){
+      storm.active = true; storm.duration = rand(9,15)*difficulty.stormDurationMultiplier;
+      toast('⚠ พายุฝุ่นกำลังเข้าใกล้ — พลังงานแสงอาทิตย์ลดลง');
+    }
+  } else {
+    storm.duration -= delta;
+    if(storm.duration<=0){
+      storm.active = false; storm.timer = rand(45,90)*difficulty.stormTimerMultiplier;
+      toast('พายุฝุ่นสงบลงแล้ว');
+    }
+  }
+}
+
+function updateRoverMovement(delta){
+  const cfg = roverCfg;
+  const kf = (keys['KeyW']||keys['ArrowUp']) ? 1 : (keys['KeyS']||keys['ArrowDown']) ? -1 : 0;
+  const kt = (keys['KeyA']||keys['ArrowLeft']) ? 1 : (keys['KeyD']||keys['ArrowRight']) ? -1 : 0;
+  const forward = kf!==0 ? kf : touchInput.forward;
+  const turn = kt!==0 ? kt : touchInput.turn;
+  boosting = !!keys['ShiftLeft'] || !!keys['ShiftRight'] || touchInput.boost;
+
+  const moving = Math.abs(forward)>0.05;
+  let speedMult = 1;
+  const solarDead = (cfg.power==='solar' && battery<=0);
+  if(solarDead) speedMult = 0;
+  else if(cfg.power==='battery' && battery<15) speedMult = 0.5;
+
+  const slip = craterSlip(roverGroup.position.x, roverGroup.position.z);
+  const slipPenalty = cfg.id==='lrv' ? slip*0.25 : slip*0.55;
+  speedMult *= (1-slipPenalty);
+
+  if(boosting && battery>4 && speedMult>0) speedMult *= (cfg.id==='lrv'?1.8:1.35);
+
+  if(Math.abs(turn)>0.05){
+    roverGroup.rotation.y += turn*1.6*delta*(moving?1:0.8);
+  }
+  if(moving && speedMult>0){
+    const spd = cfg.speed*speedMult*forward*delta;
+    const nx = roverGroup.position.x - Math.sin(roverGroup.rotation.y)*spd;
+    const nz = roverGroup.position.z - Math.cos(roverGroup.rotation.y)*spd;
+    let blocked = false;
+    for(const r of rocks){
+      if(dist2(nx,nz,r.x,r.z) < r.radius+1.1){
+        blocked=true;
+        spawnParticles({
+          position:{x:(nx+roverGroup.position.x)/2, y:roverGroup.position.y+0.4, z:(nz+roverGroup.position.z)/2},
+          color: planet.rockColorA, count:8, spread:1.2, speed:1.6, size:0.16, lifetime:0.5, gravity:-3, upBias:0.5
+        });
+        break;
+      }
+    }
+    if(!blocked){
+      roverGroup.position.x = clamp(nx, -WORLD_SIZE/2+4, WORLD_SIZE/2-4);
+      roverGroup.position.z = clamp(nz, -WORLD_SIZE/2+4, WORLD_SIZE/2-4);
+    }
+  }
+
+  // Sample ground height at the rover's four corners (not just its center) so the body
+  // rests on the highest nearby point instead of clipping through bumps and crater rims.
+  const hL = getHeight(roverGroup.position.x - Math.cos(roverGroup.rotation.y)*1.3, roverGroup.position.z + Math.sin(roverGroup.rotation.y)*1.3);
+  const hR = getHeight(roverGroup.position.x + Math.cos(roverGroup.rotation.y)*1.3, roverGroup.position.z - Math.sin(roverGroup.rotation.y)*1.3);
+  const hF = getHeight(roverGroup.position.x - Math.sin(roverGroup.rotation.y)*1.6, roverGroup.position.z - Math.cos(roverGroup.rotation.y)*1.6);
+  const hB = getHeight(roverGroup.position.x + Math.sin(roverGroup.rotation.y)*1.6, roverGroup.position.z + Math.cos(roverGroup.rotation.y)*1.6);
+  const hC = getHeight(roverGroup.position.x, roverGroup.position.z);
+  const highestNearby = Math.max(hL,hR,hF,hB,hC);
+  const avgNearby = (hL+hR+hF+hB+hC)/5;
+  const contactHeight = highestNearby*0.6 + avgNearby*0.4 + 0.06;
+
+  const posSmooth = 1 - Math.exp(-16*delta);
+  roverGroup.position.y = lerp(roverGroup.position.y, contactHeight, posSmooth);
+  const tiltSmooth = 1 - Math.exp(-10*delta);
+  roverGroup.rotation.z = lerp(roverGroup.rotation.z, Math.atan2(hL-hR, 2.6), tiltSmooth);
+  roverGroup.rotation.x = lerp(roverGroup.rotation.x, Math.atan2(hB-hF, 3.2), tiltSmooth);
+
+  if(moving && speedMult>0.05){
+    wheelDustTimer -= delta;
+    if(wheelDustTimer<=0){
+      wheelDustTimer = 0.09;
+      const backOff = new THREE.Vector3(Math.sin(roverGroup.rotation.y), 0, Math.cos(roverGroup.rotation.y)).multiplyScalar(1.3*Math.sign(forward));
+      spawnParticles({
+        position:{ x:roverGroup.position.x+backOff.x, y:roverGroup.position.y+0.15, z:roverGroup.position.z+backOff.z },
+        color: planet.rockColorA, count:4, spread:0.5, speed:0.7, size: planet.hasAtmosphere?0.22:0.14,
+        lifetime: planet.hasAtmosphere?1.1:0.5, gravity: planet.hasAtmosphere?-0.6:-1.6, upBias:0.4
+      });
+    }
+  }
+
+  updateBattery(delta, moving);
+
+  return { moving, speed: moving?Math.abs(cfg.speed*speedMult):0, slip, solarDead };
+}
+
+function updateCamera(){
+  const p = roverGroup.position;
+  if(viewMode==='chase'){
+    const back = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), roverGroup.rotation.y);
+    const desired = new THREE.Vector3(p.x + back.x*9, p.y+5.5, p.z + back.z*9);
+    camera.position.lerp(desired, 0.06);
+    const groundAtCam = getHeight(camera.position.x, camera.position.z);
+    if(camera.position.y < groundAtCam+1.2) camera.position.y = groundAtCam+1.2;
+    camera.lookAt(p.x, p.y+1.6, p.z);
+  } else {
+    const anchor = mastAnchor || {x:0,y:2.6,z:0};
+    const wx = p.x + anchor.x*Math.cos(roverGroup.rotation.y) - anchor.z*Math.sin(roverGroup.rotation.y);
+    const wz = p.z - anchor.x*Math.sin(roverGroup.rotation.y) - anchor.z*Math.cos(roverGroup.rotation.y);
+    camera.position.set(wx, p.y+anchor.y, wz);
+    const yaw = roverGroup.rotation.y + yawOffset;
+    const dir = new THREE.Vector3(-Math.sin(yaw), pitchOffset, -Math.cos(yaw));
+    camera.lookAt(camera.position.x+dir.x, camera.position.y+dir.y, camera.position.z+dir.z);
+  }
+}
+
+function updatePrompt(){
+  const cfg = roverCfg;
+  let msg = '';
+  let bestD = Infinity, bestType=null;
+  for(const d of deposits){
+    if(d.collected) continue;
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, d.x, d.z);
+    if(dd<cfg.toolRange && dd<bestD){ bestD=dd; bestType='sample'; }
+  }
+  for(const w of waypoints){
+    if(w.photographed) continue;
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, w.x, w.z);
+    if(dd<11 && dd<bestD){ bestD=dd; bestType='photo'; }
+  }
+  const promptEl = document.getElementById('prompt');
+  if(bestType==='sample'){ msg = `[E] ${cfg.toolName}`; }
+  else if(bestType==='photo'){ msg = '[F] ถ่ายภาพพาโนรามา'; }
+  if(msg){ promptEl.textContent = msg; promptEl.style.display='block'; }
+  else promptEl.style.display='none';
+}
+
+function updateMinimap(){
+  const cvs = document.getElementById('minimap');
+  const ctx = cvs.getContext('2d');
+  ctx.clearRect(0,0,150,150);
+  ctx.fillStyle = 'rgba(10,15,22,0.4)';
+  ctx.beginPath(); ctx.arc(75,75,74,0,Math.PI*2); ctx.fill();
+  const scale = 150/90;
+  const px = roverGroup.position.x, pz = roverGroup.position.z;
+  function toMap(x,z){ return [75+(x-px)*scale*0.5, 75+(z-pz)*scale*0.5]; }
+  rocks.forEach(r=>{ const d=dist2(px,pz,r.x,r.z); if(d<90){ const[mx,my]=toMap(r.x,r.z); ctx.fillStyle='#4a4a4a'; ctx.fillRect(mx-1,my-1,2,2);} });
+  deposits.forEach(d=>{ if(d.collected) return; const dd=dist2(px,pz,d.x,d.z); if(dd<90){ const[mx,my]=toMap(d.x,d.z); ctx.fillStyle='#6fe7dd'; ctx.beginPath(); ctx.arc(mx,my,2.6,0,Math.PI*2); ctx.fill(); } });
+  waypoints.forEach(w=>{ if(w.photographed) return; const dd=dist2(px,pz,w.x,w.z); if(dd<90){ const[mx,my]=toMap(w.x,w.z); ctx.fillStyle='#ffb454'; ctx.fillRect(mx-2,my-2,4,4); } });
+  ctx.save();
+  ctx.translate(75,75);
+  ctx.rotate(roverGroup.rotation.y);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.moveTo(0,-6); ctx.lineTo(4,5); ctx.lineTo(-4,5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '9px monospace';
+  ctx.fillText('N', 71, 14);
+}
+
+function updateHUD(moveInfo){
+  const elevation = Math.sin(sunAngle);
+  const label = elevation>0.35 ? 'DAY' : elevation>-0.05 ? 'TWILIGHT' : 'NIGHT';
+  document.getElementById('hud-time-label').textContent = label;
+
+  const jitter = Math.sin(clock.elapsedTime*0.5)*planet.signalDelaySec*0.02;
+  document.getElementById('hud-signal').textContent = 'Signal Delay: '+formatDelay(Math.max(0,planet.signalDelaySec+jitter));
+
+  document.getElementById('hud-sol').textContent = sol;
+
+  const battFill = document.getElementById('batt-fill');
+  battFill.style.width = battery.toFixed(0)+'%';
+  battFill.style.background = battery>40 ? '#4ade80' : battery>15 ? '#ffb454' : '#ff5f56';
+  document.getElementById('batt-pct').textContent = battery.toFixed(0)+'%';
+  const icons = { rtg:'☢', solar:'☀', battery:'🔋' };
+  document.getElementById('hud-power-icon').textContent = icons[roverCfg.power]||'⚡';
+
+  document.getElementById('tel-speed').textContent = moveInfo.speed.toFixed(1)+' m/s';
+  document.getElementById('tel-pos').textContent = fakeCoord(roverGroup.position.x, roverGroup.position.z);
+  document.getElementById('tel-terrain').textContent = moveInfo.slip>0.5 ? 'Loose Regolith' : moveInfo.slip>0.15 ? 'Uneven' : 'Nominal';
+  document.getElementById('tel-score').textContent = score;
+
+  const banner = document.getElementById('warning-banner');
+  if(moveInfo.solarDead){
+    banner.style.display='block'; banner.textContent='⚠ LOW POWER — AWAITING SUNLIGHT';
+  } else if(planet.hasDustStorm && storm.active){
+    banner.style.display='block'; banner.textContent='⚠ DUST STORM — VISIBILITY REDUCED';
+  } else if(battery<15){
+    banner.style.display='block'; banner.textContent='⚠ BATTERY CRITICAL';
+  } else {
+    banner.style.display='none';
+  }
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.1);
+  if(gameState==='playing'){
+    sunAngle += delta*(2*Math.PI/planet.dayLength);
+    if(sunAngle > Math.PI*2){ sunAngle -= Math.PI*2; sol++; }
+    updateStorm(delta);
+    const moveInfo = updateRoverMovement(delta);
+    updateSky();
+    updateCamera();
+    updatePrompt();
+    updateHUD(moveInfo);
+    updateMinimap();
+  }
+  updateParticles(delta);
+  renderer.render(scene, camera);
+}
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+function renderRoverList(planetKey){
+  const list = document.getElementById('rover-list');
+  list.innerHTML = '';
+  const p = PLANETS[planetKey];
+  document.getElementById('rover-eyebrow').textContent = `Deployment Roster // ${p.label}`;
+  document.getElementById('rover-title').textContent = `เลือกหุ่นยนต์สำรวจ${p.name}`;
+  ROVERS.filter(r=>r.planet===planetKey).forEach(cfg=>{
+    const card = document.createElement('div');
+    card.className = 'card rover-card';
+    card.tabIndex = 0;
+    const powerLabel = { rtg:'☢ RTG NUCLEAR', solar:'☀ SOLAR', battery:'🔋 BATTERY' }[cfg.power];
+    card.innerHTML = `
+      <span class="badge">${powerLabel}</span>
+      <h3>${cfg.name}</h3>
+      <div class="full">${cfg.full}</div>
+      <p class="desc">${cfg.desc}</p>
+      <div class="bar-row"><span style="width:60px;">SPEED</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.speed*100}%"></div></div></div>
+      <div class="bar-row"><span style="width:60px;">POWER</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.battery*100}%;background:#ffb454;"></div></div></div>
+      <div class="bar-row"><span style="width:60px;">RANGE</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.range*100}%;background:#c1622f;"></div></div></div>
+      <div style="margin-top:14px;text-align:right;"><button class="btn">ปล่อยลงสำรวจ →</button></div>
+    `;
+    card.addEventListener('click', ()=>{
+      selectedPlanetKey = planetKey;
+      selectedRoverId = cfg.id;
+      document.getElementById('screen-rover').style.display='none';
+      document.getElementById('screen-difficulty').style.display='flex';
+      gameState = 'menu-difficulty';
+    });
+    list.appendChild(card);
+  });
+}
+
+document.querySelectorAll('#screen-planet .card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    const key = card.dataset.planet;
+    document.getElementById('screen-planet').style.display='none';
+    document.getElementById('screen-rover').style.display='flex';
+    renderRoverList(key);
+    gameState = 'menu-rover';
+  });
+});
+document.getElementById('back-to-planet').addEventListener('click', ()=>{
+  document.getElementById('screen-rover').style.display='none';
+  document.getElementById('screen-planet').style.display='flex';
+  gameState = 'menu-planet';
+});
+document.getElementById('back-to-rover').addEventListener('click', ()=>{
+  document.getElementById('screen-difficulty').style.display='none';
+  document.getElementById('screen-rover').style.display='flex';
+  gameState = 'menu-rover';
+});
+document.querySelectorAll('#screen-difficulty .diff-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.getElementById('screen-difficulty').style.display='none';
+    startMission(selectedPlanetKey, selectedRoverId, card.dataset.diff);
+  });
+});
+document.getElementById('btn-restart-same').addEventListener('click', ()=>{
+  document.getElementById('debrief').style.display='none';
+  startMission(planet.key, roverCfg.id, difficulty.key);
+});
+document.getElementById('btn-restart-menu').addEventListener('click', ()=>{
+  document.getElementById('debrief').style.display='none';
+  document.getElementById('screen-planet').style.display='flex';
+  gameState = 'menu-planet';
+});
+
+initThree();
+</script>
 </body>
 </html>
