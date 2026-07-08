@@ -169,11 +169,21 @@
     border-bottom:1px solid var(--line);}
   #help .row b{color:var(--text);}
 
+  #pause-menu{position:fixed;inset:0;z-index:27;background:rgba(3,5,8,0.88);display:none;align-items:center;
+    justify-content:center;}
+  #pause-menu .box{background:var(--panel-solid);border:1px solid var(--amber);border-radius:8px;
+    padding:32px 36px;max-width:340px;width:88%;}
+
+  .icon-btn{pointer-events:auto;cursor:pointer;background:var(--panel-solid);border:1px solid var(--line);
+    color:var(--cyan);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.05em;
+    padding:4px 10px;border-radius:4px;margin-bottom:6px;}
+  .icon-btn:hover{border-color:var(--cyan);}
+
   /* debrief */
   #debrief{position:fixed;inset:0;z-index:30;background:rgba(3,5,8,0.92);display:none;align-items:center;
     justify-content:center;}
   #debrief .box{background:var(--panel-solid);border:1px solid var(--amber);border-radius:8px;
-    padding:38px 44px;max-width:460px;width:90%;text-align:center;}
+    padding:38px 44px;max-width:460px;width:90%;text-align:center;max-height:88vh;overflow-y:auto;}
   #debrief h2{color:var(--amber);margin:0 0 6px;font-size:26px;}
   #debrief .rank{font-family:'Space Mono',monospace;color:var(--cyan);font-size:13px;margin-bottom:20px;}
   #debrief .stat{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:13px;
@@ -181,6 +191,13 @@
   #debrief .stat b{color:var(--text);}
   #debrief .score{font-size:34px;color:var(--good);margin:16px 0;font-family:'Rajdhani',sans-serif;font-weight:700;}
   #debrief .btns{display:flex;gap:12px;justify-content:center;margin-top:20px;}
+
+  .achv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px;}
+  .achv{background:#111823;border:1px solid var(--line);border-radius:6px;padding:8px 4px;font-size:10px;
+    color:var(--dim);text-align:center;}
+  .achv .ic{font-size:20px;display:block;margin-bottom:4px;filter:grayscale(1);opacity:.4;}
+  .achv.earned{border-color:var(--good);color:var(--text);}
+  .achv.earned .ic{filter:none;opacity:1;}
 
   .hint-key{display:inline-block;background:#182233;border:1px solid #2a3a4d;border-radius:3px;padding:1px 6px;
     color:var(--text);font-size:11px;margin:0 2px;}
@@ -350,6 +367,7 @@
       <span id="hud-difficulty" style="color:var(--amber);">NORMAL</span>
     </div>
     <div class="hud-block right">
+      <button id="hud-menu-btn" class="icon-btn">☰ MENU</button>
       <b id="hud-time-label">DAY</b>
       <span id="hud-signal">Signal Delay: —</span>
     </div>
@@ -364,6 +382,7 @@
     <h4>MISSION OBJECTIVES</h4>
     <div class="obj-item" id="obj-samples"><span>Rock Samples</span><span>0/0</span></div>
     <div class="obj-item" id="obj-photos"><span>Panoramas</span><span>0/0</span></div>
+    <div class="obj-item" id="obj-anomaly" style="display:none;color:var(--cyan);"><span>⚠ Anomaly Detected</span><span>?</span></div>
   </div>
 
   <div class="warning-banner" id="warning-banner">⚠ WARNING</div>
@@ -391,7 +410,10 @@
 <!-- ================= HELP ================= -->
 <div id="help">
   <div class="box">
-    <h3>UPLINK CONTROLS</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;">UPLINK CONTROLS</h3>
+      <button id="help-close" class="btn ghost" style="padding:6px 14px;">✕ ปิด</button>
+    </div>
     <div class="row"><span>Drive forward / back</span><b>W S / ↑ ↓</b></div>
     <div class="row"><span>Turn left / right</span><b>A D / ← →</b></div>
     <div class="row"><span>Boost (extra battery draw)</span><b>SHIFT</b></div>
@@ -399,9 +421,22 @@
     <div class="row"><span>Capture panorama at waypoint</span><b>F</b></div>
     <div class="row"><span>Switch camera view</span><b>V</b></div>
     <div class="row"><span>Look around (Navcam mode)</span><b>Drag mouse</b></div>
-    <div class="row"><span>Toggle this help</span><b>H</b></div>
+    <div class="row"><span>Pause menu</span><b>ESC</b></div>
     <p style="color:var(--dim);font-size:12px;margin-top:14px;">บนมือถือ/แท็บเล็ต: ใช้จอยสติ๊กซ้ายขับ+เลี้ยว ปุ่ม E/F ด้านขวาใช้เครื่องมือ/ถ่ายภาพ ปุ่ม ⚡ เร่งเครื่อง และลากนิ้วบนหน้าจอเพื่อมองรอบ (โหมด Navcam)</p>
-    <p style="color:var(--dim);font-size:12px;margin-top:8px;">กด H อีกครั้งเพื่อปิด และกลับไปควบคุมหุ่นยนต์</p>
+    <p style="color:var(--dim);font-size:12px;margin-top:8px;">แตะปุ่ม "✕ ปิด" ด้านบน หรือแตะพื้นที่มืดรอบกล่องนี้ เพื่อกลับไปควบคุมหุ่นยนต์</p>
+  </div>
+</div>
+
+<!-- ================= PAUSE MENU ================= -->
+<div id="pause-menu">
+  <div class="box" style="text-align:center;">
+    <h2 style="color:var(--amber);margin:0 0 6px;">PAUSED</h2>
+    <p class="mono" id="pause-summary" style="color:var(--dim);font-size:12px;margin-bottom:20px;">—</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button id="pause-resume" class="btn">▶ กลับไปควบคุมหุ่นยนต์</button>
+      <button id="pause-help" class="btn ghost">? วิธีเล่น / ปุ่มควบคุม</button>
+      <button id="pause-quit" class="btn ghost">⏏ ออกไปเมนูหลัก</button>
+    </div>
   </div>
 </div>
 
@@ -416,6 +451,10 @@
     <div class="stat"><span>Sols Elapsed</span><b id="debrief-sols">—</b></div>
     <div class="stat"><span>Samples Collected</span><b id="debrief-samples">—</b></div>
     <div class="stat"><span>Panoramas Captured</span><b id="debrief-photos">—</b></div>
+    <div class="stat"><span>Efficiency Bonus</span><b id="debrief-bonus">+0</b></div>
+    <div class="stat" id="debrief-best-row"><span>Session Best (this loadout)</span><b id="debrief-best">—</b></div>
+    <div id="debrief-newrecord" style="display:none;color:var(--good);font-size:12px;margin-top:8px;letter-spacing:.08em;">🏆 สถิติใหม่ของเซสชันนี้!</div>
+    <div class="achv-grid" id="achv-grid"></div>
     <div class="btns">
       <button class="btn ghost" id="btn-restart-same">ภารกิจใหม่ (หุ่นยนต์เดิม)</button>
       <button class="btn" id="btn-restart-menu">กลับสู่เมนู</button>
@@ -533,6 +572,18 @@ let touchInput = { forward:0, turn:0, boost:false };
 let particleSystems = [];
 let sunGlowSprite = null;
 let wheelDustTimer = 0;
+let collisionCount = 0, boostActiveTime = 0, nightObserved = false, stormObserved = false;
+let anomalyDeposit = null, collectedAnomaly = false;
+let sessionBests = {};
+
+const ACHIEVEMENTS = [
+  { id:'steady', icon:'🎯', label:'มือนิ่งไร้รอยขีดข่วน', cond: s=>s.collisionCount===0 },
+  { id:'night', icon:'🌙', label:'นกฮูกราตรี', cond: s=>s.nightObserved },
+  { id:'storm', icon:'🌪', label:'ฝ่าพายุฝุ่น', cond: s=>s.stormObserved },
+  { id:'speed', icon:'🚀', label:'สายเร่งเครื่อง', cond: s=>s.boostActiveTime>5 },
+  { id:'anomaly', icon:'🔮', label:'นักล่าสิ่งผิดปกติ', cond: s=>s.collectedAnomaly },
+  { id:'efficient', icon:'⏱', label:'จบภารกิจใน 1 Sol', cond: s=>s.sol<=1 },
+];
 
 const WORLD_SIZE = 340;
 const SAFE_ZONE = 22;
@@ -669,8 +720,14 @@ function onKeyDown(e){
   keys[e.code]=true;
   if(gameState==='playing'){
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    if(e.code==='Escape'){
+      if(document.getElementById('help').style.display==='flex') toggleHelp();
+      else togglePause();
+      return;
+    }
+    if(e.code==='KeyH'){ toggleHelp(); return; }
+    if(paused) return;
     if(e.code==='KeyV') toggleView();
-    if(e.code==='KeyH') toggleHelp();
     if(e.code==='KeyE') useTool();
     if(e.code==='KeyF') capturePhoto();
   }
@@ -777,6 +834,8 @@ function clearWorld(){
   rocks.forEach(r=>scene.remove(r.mesh));
   deposits.forEach(d=>scene.remove(d.mesh));
   waypoints.forEach(w=>scene.remove(w.mesh));
+  if(anomalyDeposit) scene.remove(anomalyDeposit.mesh);
+  anomalyDeposit = null;
   particleSystems.forEach(ps=>{ scene.remove(ps.points); ps.points.geometry.dispose(); ps.points.material.dispose(); });
   particleSystems = [];
   rocks=[]; deposits=[]; waypoints=[]; craters=[];
@@ -867,6 +926,14 @@ function makeDepositMesh(){
   return mesh;
 }
 
+function makeAnomalyMesh(){
+  const geo = new THREE.OctahedronGeometry(1.15, 1);
+  const mat = new THREE.MeshStandardMaterial({ color:0xe07bff, emissive:0x8a1fbf, emissiveIntensity:1.1, roughness:0.25 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  return mesh;
+}
+
 function generateDeposits(){
   for(let i=0;i<missionSampleTarget;i++){
     let x,z,tries=0;
@@ -878,6 +945,14 @@ function generateDeposits(){
     scene.add(mesh);
     deposits.push({ mesh, x, z, collected:false, baseY:y+0.9 });
   }
+  let x,z,tries=0;
+  do{ x=rand(-WORLD_SIZE/2+20, WORLD_SIZE/2-20); z=rand(-WORLD_SIZE/2+20, WORLD_SIZE/2-20); tries++; }
+  while(dist2(x,0,z,0) < SAFE_ZONE+15 && tries<25);
+  const amesh = makeAnomalyMesh();
+  const ay = getHeight(x,z);
+  amesh.position.set(x, ay+1.1, z);
+  scene.add(amesh);
+  anomalyDeposit = { mesh:amesh, x, z, collected:false, baseY:ay+1.1, isAnomaly:true };
 }
 
 function makeFlagMesh(){
@@ -1150,6 +1225,8 @@ function startMission(planetKey, roverId, difficultyKey){
   viewMode = 'chase'; yawOffset = 0; pitchOffset = 0;
   touchInput = { forward:0, turn:0, boost:false };
   wheelDustTimer = 0;
+  collisionCount = 0; boostActiveTime = 0; nightObserved = false; stormObserved = false; collectedAnomaly = false;
+  paused = false;
 
   scene.fog = new THREE.Fog(planet.fogDay, 30, planet.hasAtmosphere ? 170 : 260);
 
@@ -1160,6 +1237,7 @@ function startMission(planetKey, roverId, difficultyKey){
   document.getElementById('obj-photos').classList.remove('done');
   document.getElementById('obj-samples').querySelector('span:last-child').textContent = `0/${missionSampleTarget}`;
   document.getElementById('obj-photos').querySelector('span:last-child').textContent = `0/${missionPhotoTarget}`;
+  document.getElementById('obj-anomaly').style.display = 'none';
 
   document.getElementById('hud').style.display = 'block';
   gameState = 'playing';
@@ -1167,8 +1245,25 @@ function startMission(planetKey, roverId, difficultyKey){
 }
 
 function useTool(){
-  if(gameState!=='playing') return;
+  if(gameState!=='playing' || paused) return;
   const cfg = roverCfg;
+
+  if(anomalyDeposit && !anomalyDeposit.collected){
+    const da = dist2(roverGroup.position.x, roverGroup.position.z, anomalyDeposit.x, anomalyDeposit.z);
+    if(da < cfg.toolRange){
+      anomalyDeposit.collected = true;
+      collectedAnomaly = true;
+      scene.remove(anomalyDeposit.mesh);
+      spawnParticles({ position:anomalyDeposit.mesh.position, color:0xe07bff, count:22, spread:1.8, speed:2.6, size:0.18, lifetime:0.8, gravity:-1.2, upBias:1.1 });
+      const gained = Math.round(25*difficulty.scoreMultiplier);
+      score += gained;
+      document.getElementById('obj-anomaly').style.display = 'none';
+      toast(`🔮 ค้นพบสิ่งผิดปกติ! +${gained}`);
+      checkMissionComplete();
+      return;
+    }
+  }
+
   let best=null, bestD=Infinity;
   for(const d of deposits){
     if(d.collected) continue;
@@ -1189,7 +1284,7 @@ function useTool(){
 }
 
 function capturePhoto(){
-  if(gameState!=='playing') return;
+  if(gameState!=='playing' || paused) return;
   let best=null, bestD=Infinity;
   for(const w of waypoints){
     if(w.photographed) continue;
@@ -1218,28 +1313,62 @@ function checkMissionComplete(){
 function showDebrief(){
   gameState = 'debrief';
   document.getElementById('hud').style.display='none';
+
+  const efficiencyBonus = sol<=1 ? 40 : (sol===2 ? 15 : 0);
+  const finalScore = score + efficiencyBonus;
+
   let rank = 'Junior Technician';
-  if(score>=170) rank='Principal Investigator';
-  else if(score>=120) rank='Mission Specialist';
-  else if(score>=80) rank='Field Geologist';
+  if(finalScore>=190) rank='Principal Investigator';
+  else if(finalScore>=140) rank='Mission Specialist';
+  else if(finalScore>=90) rank='Field Geologist';
   document.getElementById('debrief-rank').textContent = 'RANK: '+rank.toUpperCase();
-  document.getElementById('debrief-score').textContent = score+' PTS';
+  document.getElementById('debrief-score').textContent = finalScore+' PTS';
   document.getElementById('debrief-rover').textContent = roverCfg.name+' — '+planet.name;
   document.getElementById('debrief-sols').textContent = sol;
   document.getElementById('debrief-samples').textContent = samplesCollected+'/'+missionSampleTarget;
   document.getElementById('debrief-photos').textContent = photosTaken+'/'+missionPhotoTarget;
   document.getElementById('debrief-difficulty').textContent = difficulty.label;
+  document.getElementById('debrief-bonus').textContent = '+'+efficiencyBonus;
+
+  const bestKey = `${planet.key}:${roverCfg.id}:${difficulty.key}`;
+  const prevBest = sessionBests[bestKey];
+  const isNewRecord = !prevBest || finalScore>prevBest;
+  document.getElementById('debrief-best').textContent = prevBest ? prevBest+' PTS' : 'ยังไม่มีสถิติ';
+  document.getElementById('debrief-newrecord').style.display = isNewRecord ? 'block' : 'none';
+  if(isNewRecord) sessionBests[bestKey] = finalScore;
+
+  const stats = { collisionCount, boostActiveTime, nightObserved, stormObserved, collectedAnomaly, sol };
+  const grid = document.getElementById('achv-grid');
+  grid.innerHTML = ACHIEVEMENTS.map(a=>{
+    const earned = a.cond(stats);
+    return `<div class="achv ${earned?'earned':''}"><span class="ic">${a.icon}</span>${a.label}</div>`;
+  }).join('');
+
   document.getElementById('debrief').style.display='flex';
 }
 
 function toggleView(){
+  if(paused) return;
   viewMode = viewMode==='chase' ? 'nav' : 'chase';
   document.getElementById('view-mode-label').textContent = viewMode==='chase' ? 'CHASE' : 'NAVCAM';
   document.getElementById('crosshair').style.display = viewMode==='nav' ? 'block':'none';
 }
 function toggleHelp(){
   const el = document.getElementById('help');
-  el.style.display = el.style.display==='flex' ? 'none' : 'flex';
+  const opening = el.style.display !== 'flex';
+  el.style.display = opening ? 'flex' : 'none';
+  if(gameState==='playing') paused = opening;
+}
+function togglePause(){
+  if(gameState!=='playing') return;
+  const el = document.getElementById('pause-menu');
+  const opening = el.style.display !== 'flex';
+  if(opening){
+    document.getElementById('pause-summary').textContent =
+      `${roverCfg.name} · ${planet.name} · Sol ${sol} · คะแนน ${score}`;
+  }
+  el.style.display = opening ? 'flex' : 'none';
+  paused = opening;
 }
 
 /* ============================================================
@@ -1320,6 +1449,7 @@ function updateStorm(delta){
     storm.timer -= delta;
     if(storm.timer<=0){
       storm.active = true; storm.duration = rand(9,15)*difficulty.stormDurationMultiplier;
+      stormObserved = true;
       toast('⚠ พายุฝุ่นกำลังเข้าใกล้ — พลังงานแสงอาทิตย์ลดลง');
     }
   } else {
@@ -1350,6 +1480,7 @@ function updateRoverMovement(delta){
   speedMult *= (1-slipPenalty);
 
   if(boosting && battery>4 && speedMult>0) speedMult *= (cfg.id==='lrv'?1.8:1.35);
+  if(boosting && battery>4 && moving) boostActiveTime += delta;
 
   if(Math.abs(turn)>0.05){
     roverGroup.rotation.y += turn*1.6*delta*(moving?1:0.8);
@@ -1362,6 +1493,7 @@ function updateRoverMovement(delta){
     for(const r of rocks){
       if(dist2(nx,nz,r.x,r.z) < r.radius+1.1){
         blocked=true;
+        collisionCount++;
         spawnParticles({
           position:{x:(nx+roverGroup.position.x)/2, y:roverGroup.position.y+0.4, z:(nz+roverGroup.position.z)/2},
           color: planet.rockColorA, count:8, spread:1.2, speed:1.6, size:0.16, lifetime:0.5, gravity:-3, upBias:0.5
@@ -1444,9 +1576,18 @@ function updatePrompt(){
     const dd = dist2(roverGroup.position.x, roverGroup.position.z, w.x, w.z);
     if(dd<11 && dd<bestD){ bestD=dd; bestType='photo'; }
   }
+  if(anomalyDeposit && !anomalyDeposit.collected){
+    const da = dist2(roverGroup.position.x, roverGroup.position.z, anomalyDeposit.x, anomalyDeposit.z);
+    if(da < 26){
+      const row = document.getElementById('obj-anomaly');
+      if(row.style.display==='none'){ row.style.display='flex'; toast('⚠ ตรวจพบสิ่งผิดปกติในบริเวณใกล้เคียง!'); }
+    }
+    if(da < cfg.toolRange && da<bestD){ bestD=da; bestType='anomaly'; }
+  }
   const promptEl = document.getElementById('prompt');
   if(bestType==='sample'){ msg = `[E] ${cfg.toolName}`; }
   else if(bestType==='photo'){ msg = '[F] ถ่ายภาพพาโนรามา'; }
+  else if(bestType==='anomaly'){ msg = '[E] ตรวจสอบสิ่งผิดปกติ'; }
   if(msg){ promptEl.textContent = msg; promptEl.style.display='block'; }
   else promptEl.style.display='none';
 }
@@ -1455,23 +1596,64 @@ function updateMinimap(){
   const cvs = document.getElementById('minimap');
   const ctx = cvs.getContext('2d');
   ctx.clearRect(0,0,150,150);
-  ctx.fillStyle = 'rgba(10,15,22,0.4)';
+
+  const bg = ctx.createRadialGradient(75,75,4,75,75,74);
+  bg.addColorStop(0, 'rgba(22,34,46,0.55)');
+  bg.addColorStop(1, 'rgba(8,12,18,0.55)');
+  ctx.fillStyle = bg;
   ctx.beginPath(); ctx.arc(75,75,74,0,Math.PI*2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(111,231,221,0.14)';
+  ctx.lineWidth = 1;
+  [26,50,72].forEach(r=>{ ctx.beginPath(); ctx.arc(75,75,r,0,Math.PI*2); ctx.stroke(); });
+  ctx.beginPath(); ctx.moveTo(75,4); ctx.lineTo(75,146); ctx.moveTo(4,75); ctx.lineTo(146,75); ctx.stroke();
+
   const scale = 150/90;
   const px = roverGroup.position.x, pz = roverGroup.position.z;
   function toMap(x,z){ return [75+(x-px)*scale*0.5, 75+(z-pz)*scale*0.5]; }
-  rocks.forEach(r=>{ const d=dist2(px,pz,r.x,r.z); if(d<90){ const[mx,my]=toMap(r.x,r.z); ctx.fillStyle='#4a4a4a'; ctx.fillRect(mx-1,my-1,2,2);} });
-  deposits.forEach(d=>{ if(d.collected) return; const dd=dist2(px,pz,d.x,d.z); if(dd<90){ const[mx,my]=toMap(d.x,d.z); ctx.fillStyle='#6fe7dd'; ctx.beginPath(); ctx.arc(mx,my,2.6,0,Math.PI*2); ctx.fill(); } });
+
+  const dHome = dist2(px,pz,0,0);
+  if(dHome<90){
+    const [hx,hy] = toMap(0,0);
+    ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(hx,hy,4.5,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx-6,hy); ctx.lineTo(hx+6,hy); ctx.moveTo(hx,hy-6); ctx.lineTo(hx,hy+6); ctx.stroke();
+  }
+
+  rocks.forEach(r=>{ const d=dist2(px,pz,r.x,r.z); if(d<90){ const[mx,my]=toMap(r.x,r.z); ctx.fillStyle='#5a5a5a'; ctx.fillRect(mx-1,my-1,2,2);} });
+  deposits.forEach(d=>{ if(d.collected) return; const dd=dist2(px,pz,d.x,d.z); if(dd<90){ const[mx,my]=toMap(d.x,d.z); ctx.fillStyle='#6fe7dd'; ctx.beginPath(); ctx.arc(mx,my,2.8,0,Math.PI*2); ctx.fill(); } });
   waypoints.forEach(w=>{ if(w.photographed) return; const dd=dist2(px,pz,w.x,w.z); if(dd<90){ const[mx,my]=toMap(w.x,w.z); ctx.fillStyle='#ffb454'; ctx.fillRect(mx-2,my-2,4,4); } });
+  if(anomalyDeposit && !anomalyDeposit.collected && document.getElementById('obj-anomaly').style.display!=='none'){
+    const dd = dist2(px,pz,anomalyDeposit.x,anomalyDeposit.z);
+    if(dd<90){
+      const [mx,my] = toMap(anomalyDeposit.x, anomalyDeposit.z);
+      const pulse = 2.6 + Math.sin(clock.elapsedTime*5)*1.1;
+      ctx.fillStyle = '#e07bff';
+      ctx.beginPath(); ctx.arc(mx,my,pulse,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // heading arrow — rotated opposite to the canvas's Y-down convention so it
+  // always points the same way the rover is actually facing/driving.
   ctx.save();
   ctx.translate(75,75);
-  ctx.rotate(roverGroup.rotation.y);
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.moveTo(0,-6); ctx.lineTo(4,5); ctx.lineTo(-4,5); ctx.closePath(); ctx.fill();
+  ctx.rotate(-roverGroup.rotation.y);
+  ctx.fillStyle = 'rgba(111,231,221,0.35)';
+  ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(6,7); ctx.lineTo(0,3); ctx.lineTo(-6,7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#eafffb';
+  ctx.strokeStyle = '#0d3934'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(4.5,5.5); ctx.lineTo(0,2); ctx.lineTo(-4.5,5.5); ctx.closePath();
+  ctx.fill(); ctx.stroke();
   ctx.restore();
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+
+  ctx.fillStyle = 'rgba(232,236,241,0.75)';
   ctx.font = '9px monospace';
-  ctx.fillText('N', 71, 14);
+  ctx.textAlign = 'center';
+  ctx.fillText('N', 75, 13);
+  ctx.fillText('S', 75, 143);
+  ctx.fillText('E', 142, 78);
+  ctx.fillText('W', 8, 78);
+  ctx.textAlign = 'left';
 }
 
 function updateHUD(moveInfo){
@@ -1511,9 +1693,10 @@ function updateHUD(moveInfo){
 function animate(){
   requestAnimationFrame(animate);
   const delta = Math.min(clock.getDelta(), 0.1);
-  if(gameState==='playing'){
+  if(gameState==='playing' && !paused){
     sunAngle += delta*(2*Math.PI/planet.dayLength);
     if(sunAngle > Math.PI*2){ sunAngle -= Math.PI*2; sol++; }
+    if(Math.sin(sunAngle) < 0) nightObserved = true;
     updateStorm(delta);
     const moveInfo = updateRoverMovement(delta);
     updateSky();
@@ -1521,8 +1704,8 @@ function animate(){
     updatePrompt();
     updateHUD(moveInfo);
     updateMinimap();
+    updateParticles(delta);
   }
-  updateParticles(delta);
   renderer.render(scene, camera);
 }
 
@@ -1590,11 +1773,31 @@ document.getElementById('btn-restart-same').addEventListener('click', ()=>{
   document.getElementById('debrief').style.display='none';
   startMission(planet.key, roverCfg.id, difficulty.key);
 });
-document.getElementById('btn-restart-menu').addEventListener('click', ()=>{
-  document.getElementById('debrief').style.display='none';
-  document.getElementById('screen-planet').style.display='flex';
-  gameState = 'menu-planet';
+document.getElementById('btn-restart-menu').addEventListener('click', quitToMainMenu);
+
+document.getElementById('hud-menu-btn').addEventListener('click', togglePause);
+document.getElementById('pause-resume').addEventListener('click', togglePause);
+document.getElementById('pause-help').addEventListener('click', ()=>{
+  document.getElementById('pause-menu').style.display='none';
+  document.getElementById('help').style.display='flex';
+  paused = true;
 });
+document.getElementById('pause-quit').addEventListener('click', quitToMainMenu);
+
+document.getElementById('help-close').addEventListener('click', toggleHelp);
+document.getElementById('help').addEventListener('click', (e)=>{
+  if(e.target.id==='help') toggleHelp();
+});
+
+function quitToMainMenu(){
+  document.getElementById('debrief').style.display='none';
+  document.getElementById('pause-menu').style.display='none';
+  document.getElementById('help').style.display='none';
+  document.getElementById('hud').style.display='none';
+  paused = false;
+  gameState = 'menu-planet';
+  document.getElementById('screen-planet').style.display='flex';
+}
 
 initThree();
 </script>
