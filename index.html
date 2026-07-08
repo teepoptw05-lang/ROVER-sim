@@ -488,31 +488,31 @@ const PLANETS = {
 
 const ROVERS = [
   { id:'curiosity', planet:'mars', name:'Curiosity', full:'Mars Science Laboratory (2012)',
-    power:'rtg', speed:6.2, drainRate:0.9, chargeRate:0,
+    power:'rtg', speed:6.2, drainRate:0.9, chargeRate:0, groundClearance:0.08,
     tool:'laser', toolName:'ChemCam Laser Spectrometer', toolRange:13, toolTime:0.5, sampleValue:10,
     color:0xC9B37E, accentColor:0xff6b4a,
     desc:'ขับเคลื่อนด้วยพลังงานนิวเคลียร์ (RTG) ทำงานได้ตลอดวันตลอดคืน ยิงเลเซอร์วิเคราะห์แร่ธาตุจากระยะไกลได้โดยไม่ต้องเข้าใกล้',
     stats:{speed:0.62,battery:0.9,range:0.85}},
   { id:'perseverance', planet:'mars', name:'Perseverance', full:'Mars 2020 Rover',
-    power:'rtg', speed:5.4, drainRate:1.0, chargeRate:0,
+    power:'rtg', speed:5.4, drainRate:1.0, chargeRate:0, groundClearance:0.08,
     tool:'drill', toolName:'Core Drill Sampler', toolRange:3.2, toolTime:1.7, sampleValue:16,
     color:0xE7E7E2, accentColor:0x3a3a3a,
     desc:'มีสว่านเจาะแกนหินคุณภาพสูงสำหรับเก็บตัวอย่างที่ดีที่สุด ต้องเข้าใกล้และใช้เวลาเจาะนานกว่า แต่ได้คะแนนต่อชิ้นสูงสุด',
     stats:{speed:0.54,battery:0.9,range:0.35}},
   { id:'sojourner', planet:'mars', name:'Sojourner', full:'Mars Pathfinder Rover (1997)',
-    power:'solar', speed:8.0, drainRate:2.6, chargeRate:9.5,
+    power:'solar', speed:8.0, drainRate:2.6, chargeRate:9.5, groundClearance:0.08,
     tool:'basic', toolName:'APXS Contact Sensor', toolRange:3.6, toolTime:0.9, sampleValue:6,
     color:0xB8B0A0, accentColor:0x2244aa,
     desc:'ขนาดเท่าไมโครเวฟ วิ่งเร็วและคล่องตัวที่สุด แต่แผงโซลาร์เล็กมาก แบตหมดไวและต้องพึ่งแสงแดดตลอดเวลา',
     stats:{speed:0.80,battery:0.35,range:0.30}},
   { id:'yutu2', planet:'moon', name:'Yutu-2', full:'Chang\'e 4 Lunar Rover',
-    power:'solar', speed:6.0, drainRate:1.8, chargeRate:7.5,
+    power:'solar', speed:6.0, drainRate:1.8, chargeRate:7.5, groundClearance:0.08,
     tool:'radar', toolName:'Lunar Penetrating Radar', toolRange:9, toolTime:0.7, sampleValue:11,
     color:0xD8D2C4, accentColor:0xffcc55,
     desc:'ใช้เรดาร์ตรวจใต้พื้นผิวหาแร่ธาตุที่ซ่อนอยู่ ต้องปิดระบบพักตัวช่วงกลางคืนบนดวงจันทร์ที่หนาวจัดและยาวนาน',
     stats:{speed:0.60,battery:0.55,range:0.60}},
   { id:'lrv', planet:'moon', name:'LRV', full:'Apollo Lunar Roving Vehicle',
-    power:'battery', speed:11.5, drainRate:1.4, chargeRate:1.2,
+    power:'battery', speed:11.5, drainRate:1.4, chargeRate:1.2, groundClearance:0.35,
     tool:'manual', toolName:'Manual Sample Bag', toolRange:3.2, toolTime:0.6, sampleValue:8,
     color:0xD4AF37, accentColor:0xdddddd,
     desc:'รถสำรวจของนักบินอวกาศ ไม่มีเครื่องมือวิทยาศาสตร์ในตัว แต่เร็วที่สุดและบังคับบนพื้นผิวขรุขระได้ดีเยี่ยม',
@@ -571,6 +571,7 @@ let missionSampleTarget = 6, missionPhotoTarget = 3;
 let touchInput = { forward:0, turn:0, boost:false };
 let particleSystems = [];
 let sunGlowSprite = null;
+let starTexture = null;
 let wheelDustTimer = 0;
 let collisionCount = 0, boostActiveTime = 0, nightObserved = false, stormObserved = false;
 let anomalyDeposit = null, collectedAnomaly = false;
@@ -587,6 +588,7 @@ const ACHIEVEMENTS = [
 
 const WORLD_SIZE = 340;
 const SAFE_ZONE = 22;
+const TWILIGHT_BAND = 0.18;
 
 /* ============================================================
    UTILITIES
@@ -650,9 +652,11 @@ function makeGlowTexture(){
   const cvs=document.createElement('canvas'); cvs.width=cvs.height=size;
   const ctx=cvs.getContext('2d');
   const grad = ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-  grad.addColorStop(0,'rgba(255,246,220,1)');
-  grad.addColorStop(0.35,'rgba(255,222,160,0.55)');
-  grad.addColorStop(1,'rgba(255,222,160,0)');
+  grad.addColorStop(0,'rgba(255,250,235,1)');
+  grad.addColorStop(0.18,'rgba(255,240,205,0.9)');
+  grad.addColorStop(0.45,'rgba(255,220,160,0.35)');
+  grad.addColorStop(0.75,'rgba(255,210,150,0.08)');
+  grad.addColorStop(1,'rgba(255,210,150,0)');
   ctx.fillStyle=grad; ctx.fillRect(0,0,size,size);
   return new THREE.CanvasTexture(cvs);
 }
@@ -830,7 +834,12 @@ function clearWorld(){
     terrainMesh.material.dispose();
     terrainMesh.geometry.dispose();
   }
-  [roverGroup, starPoints].forEach(o=>{ if(o) scene.remove(o); });
+  if(starPoints){
+    scene.remove(starPoints);
+    starPoints.geometry.dispose();
+    starPoints.material.dispose();
+  }
+  if(roverGroup) scene.remove(roverGroup);
   rocks.forEach(r=>scene.remove(r.mesh));
   deposits.forEach(d=>scene.remove(d.mesh));
   waypoints.forEach(w=>scene.remove(w.mesh));
@@ -979,10 +988,23 @@ function generateWaypoints(){
   }
 }
 
+function makeStarTexture(){
+  const size = 32;
+  const cvs = document.createElement('canvas'); cvs.width=cvs.height=size;
+  const ctx = cvs.getContext('2d');
+  const grad = ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  grad.addColorStop(0,'rgba(255,255,255,1)');
+  grad.addColorStop(0.35,'rgba(255,255,255,0.85)');
+  grad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,size,size);
+  return new THREE.CanvasTexture(cvs);
+}
+
 function buildStars(){
-  const count = 1800;
+  const count = 2600;
   const g = new THREE.BufferGeometry();
   const positions = new Float32Array(count*3);
+  const colors = new Float32Array(count*3);
   for(let i=0;i<count;i++){
     const r = 380;
     const theta = Math.random()*Math.PI*2;
@@ -990,9 +1012,20 @@ function buildStars(){
     positions[i*3] = r*Math.sin(phi)*Math.cos(theta);
     positions[i*3+1] = Math.abs(r*Math.cos(phi))+20;
     positions[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+
+    const brightness = rand(0.4, 1.0);
+    const warm = Math.random();
+    colors[i*3]   = brightness * (0.82 + warm*0.18);
+    colors[i*3+1] = brightness * (0.88 + warm*0.10);
+    colors[i*3+2] = brightness * (0.95 + (1-warm)*0.05);
   }
   g.setAttribute('position', new THREE.BufferAttribute(positions,3));
-  const m = new THREE.PointsMaterial({ color:0xffffff, size:1.3, sizeAttenuation:false, transparent:true, opacity:0.85 });
+  g.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  if(!starTexture) starTexture = makeStarTexture();
+  const m = new THREE.PointsMaterial({
+    size:1.9, sizeAttenuation:false, map:starTexture, vertexColors:true,
+    transparent:true, opacity:0.9, depthWrite:false, blending:THREE.AdditiveBlending
+  });
   starPoints = new THREE.Points(g,m);
   scene.add(starPoints);
 }
@@ -1215,9 +1248,10 @@ function startMission(planetKey, roverId, difficultyKey){
   buildStars();
 
   roverGroup = buildRover(roverCfg);
-  const startY = getHeight(0,0);
+  const startY = getHeight(0,0) + 0.02 - (roverCfg.groundClearance||0);
   roverGroup.position.set(0, startY, 0);
   scene.add(roverGroup);
+  setRoverBodyVisible(true);
 
   battery = 100; score = 0; samplesCollected = 0; photosTaken = 0; sol = 1;
   sunAngle = 1.15;
@@ -1347,11 +1381,18 @@ function showDebrief(){
   document.getElementById('debrief').style.display='flex';
 }
 
+function setRoverBodyVisible(visible){
+  if(!roverGroup) return;
+  roverGroup.traverse(child=>{ if(child.isMesh) child.visible = visible; });
+}
 function toggleView(){
   if(paused) return;
   viewMode = viewMode==='chase' ? 'nav' : 'chase';
   document.getElementById('view-mode-label').textContent = viewMode==='chase' ? 'CHASE' : 'NAVCAM';
   document.getElementById('crosshair').style.display = viewMode==='nav' ? 'block':'none';
+  // In Navcam we're looking out through the rover's own onboard camera, so its body,
+  // mast, and wheels shouldn't appear in frame — only its headlights (not meshes) stay live.
+  setRoverBodyVisible(viewMode!=='nav');
 }
 function toggleHelp(){
   const el = document.getElementById('help');
@@ -1376,7 +1417,8 @@ function togglePause(){
    ============================================================ */
 function updateSky(){
   const elevation = Math.sin(sunAngle);
-  let t = clamp((elevation+1)/2, 0, 1);
+  let t = clamp((elevation + TWILIGHT_BAND/2) / TWILIGHT_BAND, 0, 1);
+  t = t*t*(3-2*t); // smoothstep: real dusk/dawn is a narrow band, not half the sky cycle
   let stormFactor = (planet.hasDustStorm && storm.active) ? 0.55 : 0;
 
   const skyDay = new THREE.Color(planet.skyDay), skyNight = new THREE.Color(planet.skyNight);
@@ -1397,24 +1439,26 @@ function updateSky(){
   const sunDist = 250;
   sunLight.position.set(Math.cos(sunAngle)*sunDist, Math.max(Math.sin(sunAngle),0.02)*sunDist, 60);
   sunLight.target.position.set(roverGroup.position.x, roverGroup.position.y, roverGroup.position.z);
-  sunLight.intensity = Math.max(0.05, elevation) * planet.sunIntensity * (storm.active?0.4:1);
-  ambLight.intensity = 0.15 + (1-t)*0.12;
-  hemiLight.intensity = 0.25 + t*0.35;
+  sunLight.intensity = Math.max(0.04, t) * planet.sunIntensity * (storm.active?0.4:1);
+  ambLight.intensity = 0.05 + (1-t)*0.05 + t*0.14;
+  hemiLight.intensity = 0.16 + t*0.4;
 
   if(starPoints){
-    const starOpacity = planet.hasAtmosphere ? (1-t)*0.8 : (0.4 + (1-t)*0.5);
-    starPoints.material.opacity = starOpacity;
+    const baseStarOpacity = planet.hasAtmosphere ? (1-t)*0.9 : (0.55 + (1-t)*0.4);
+    const twinkle = Math.sin(clock.elapsedTime*2.1)*0.04 + Math.sin(clock.elapsedTime*5.3)*0.02;
+    starPoints.material.opacity = clamp(baseStarOpacity + twinkle, 0, 1);
     starPoints.position.copy(roverGroup.position);
   }
 
   if(sunGlowSprite){
     sunGlowSprite.position.copy(sunLight.position).add(roverGroup.position);
-    sunGlowSprite.material.opacity = clamp(elevation*1.3,0,1) * (storm.active?0.35:1);
+    sunGlowSprite.material.opacity = (t*t) * (storm.active?0.4:1) * 0.85;
+    const flare = 1 + (1-t)*0.3;
+    sunGlowSprite.scale.set(70*flare, 70*flare, 1);
   }
 
   if(roverGroup && roverGroup.userData.headlights){
-    const nightAmt = clamp(1 - t*1.5, 0, 1);
-    const shouldLight = nightAmt>0.1 || (planet.hasDustStorm && storm.active);
+    const shouldLight = t<0.35 || (planet.hasDustStorm && storm.active);
     const targetIntensity = shouldLight ? (1.5 + ((planet.hasDustStorm && storm.active)?0.7:0)) : 0;
     roverGroup.userData.headlights.forEach(l=>{ l.intensity = lerp(l.intensity, targetIntensity, 0.08); });
     if(roverGroup.userData.headlightLenses){
@@ -1507,16 +1551,16 @@ function updateRoverMovement(delta){
     }
   }
 
-  // Sample ground height at the rover's four corners (not just its center) so the body
-  // rests on the highest nearby point instead of clipping through bumps and crater rims.
+  // Sample ground height at the rover's four corners (not just its center) so the tilt
+  // reads the local slope correctly, then place the body so its wheels (which sit a known
+  // offset below the body's own origin, per rover) actually touch that ground average.
   const hL = getHeight(roverGroup.position.x - Math.cos(roverGroup.rotation.y)*1.3, roverGroup.position.z + Math.sin(roverGroup.rotation.y)*1.3);
   const hR = getHeight(roverGroup.position.x + Math.cos(roverGroup.rotation.y)*1.3, roverGroup.position.z - Math.sin(roverGroup.rotation.y)*1.3);
   const hF = getHeight(roverGroup.position.x - Math.sin(roverGroup.rotation.y)*1.6, roverGroup.position.z - Math.cos(roverGroup.rotation.y)*1.6);
   const hB = getHeight(roverGroup.position.x + Math.sin(roverGroup.rotation.y)*1.6, roverGroup.position.z + Math.cos(roverGroup.rotation.y)*1.6);
   const hC = getHeight(roverGroup.position.x, roverGroup.position.z);
-  const highestNearby = Math.max(hL,hR,hF,hB,hC);
   const avgNearby = (hL+hR+hF+hB+hC)/5;
-  const contactHeight = highestNearby*0.6 + avgNearby*0.4 + 0.06;
+  const contactHeight = avgNearby + 0.02 - (cfg.groundClearance||0);
 
   const posSmooth = 1 - Math.exp(-16*delta);
   roverGroup.position.y = lerp(roverGroup.position.y, contactHeight, posSmooth);
@@ -1658,7 +1702,8 @@ function updateMinimap(){
 
 function updateHUD(moveInfo){
   const elevation = Math.sin(sunAngle);
-  const label = elevation>0.35 ? 'DAY' : elevation>-0.05 ? 'TWILIGHT' : 'NIGHT';
+  const half = TWILIGHT_BAND/2;
+  const label = elevation>half ? 'DAY' : elevation>-half ? 'TWILIGHT' : 'NIGHT';
   document.getElementById('hud-time-label').textContent = label;
 
   const jitter = Math.sin(clock.elapsedTime*0.5)*planet.signalDelaySec*0.02;
