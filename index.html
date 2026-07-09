@@ -150,6 +150,13 @@
     letter-spacing:.08em;display:none;animation:blinkwarn 1.4s infinite;}
   @keyframes blinkwarn{0%,100%{opacity:1;}50%{opacity:.45;}}
 
+  .tutorial-box{position:absolute;top:206px;left:52px;right:52px;max-width:520px;background:var(--panel);
+    border:1px solid var(--amber);color:var(--text);padding:9px 14px;border-radius:4px;font-size:12.5px;
+    display:flex;align-items:center;gap:12px;pointer-events:auto;}
+  .tutorial-box #tutorial-dismiss{background:none;border:none;color:var(--dim);font-size:13px;cursor:pointer;
+    pointer-events:auto;padding:2px 4px;margin-left:auto;}
+  .tutorial-box #tutorial-dismiss:hover{color:var(--text);}
+
   .toast{position:absolute;bottom:230px;left:50%;transform:translateX(-50%);background:var(--panel-solid);
     border:1px solid var(--cyan);color:var(--cyan);padding:8px 18px;border-radius:4px;font-size:13px;
     opacity:0;transition:opacity .35s ease, transform .35s ease;pointer-events:none;}
@@ -247,7 +254,7 @@
   body.touch-mode .view-tag{display:none;}
 
   @media (max-width:720px){
-    .hud-top,.hud-bottom-left,.objectives{left:16px !important;right:16px !important;}
+    .hud-top,.hud-bottom-left,.objectives,.tutorial-box{left:16px !important;right:16px !important;}
     #minimap-wrap{right:16px;width:110px;height:110px;}
     .sol-badge{display:none;}
     #joystick-base{width:106px;height:106px;}
@@ -368,6 +375,7 @@
     </div>
     <div class="hud-block right">
       <button id="hud-menu-btn" class="icon-btn">☰ MENU</button>
+      <button id="hud-mute-btn" class="icon-btn" style="margin-left:6px;">🔊</button>
       <b id="hud-time-label">DAY</b>
       <span id="hud-signal">Signal Delay: —</span>
     </div>
@@ -387,11 +395,21 @@
 
   <div class="warning-banner" id="warning-banner">⚠ WARNING</div>
 
+  <div class="tutorial-box" id="tutorial-box" style="display:none;">
+    <span id="tutorial-text">—</span>
+    <button id="tutorial-dismiss">✕</button>
+  </div>
+
   <div class="hud-bottom-left">
     <div class="batt-row">
       <span id="hud-power-icon">⚡</span>
       <div class="batt-track"><div class="batt-fill" id="batt-fill" style="width:100%;background:#4ade80;"></div></div>
       <span id="batt-pct">100%</span>
+    </div>
+    <div class="batt-row">
+      <span>🛠</span>
+      <div class="batt-track"><div class="batt-fill" id="hull-fill" style="width:100%;background:#4ade80;"></div></div>
+      <span id="hull-pct">100%</span>
     </div>
     <div class="telemetry-line"><span>Speed</span><span id="tel-speed">0.0 m/s</span></div>
     <div class="telemetry-line"><span>Position</span><span id="tel-pos">0.00°E 0.00°N</span></div>
@@ -452,6 +470,7 @@
     <div class="stat"><span>Samples Collected</span><b id="debrief-samples">—</b></div>
     <div class="stat"><span>Panoramas Captured</span><b id="debrief-photos">—</b></div>
     <div class="stat"><span>Efficiency Bonus</span><b id="debrief-bonus">+0</b></div>
+    <div class="stat"><span>Hull Integrity</span><b id="debrief-hull">100%</b></div>
     <div class="stat" id="debrief-best-row"><span>Session Best (this loadout)</span><b id="debrief-best">—</b></div>
     <div id="debrief-newrecord" style="display:none;color:var(--good);font-size:12px;margin-top:8px;letter-spacing:.08em;">🏆 สถิติใหม่ของเซสชันนี้!</div>
     <div class="achv-grid" id="achv-grid"></div>
@@ -576,6 +595,17 @@ let wheelDustTimer = 0;
 let collisionCount = 0, boostActiveTime = 0, nightObserved = false, stormObserved = false;
 let anomalyDeposit = null, collectedAnomaly = false;
 let sessionBests = {};
+let hullIntegrity = 100;
+let tutorialSeen = false, tutorialActive = false, tutorialStep = 0;
+let lowBatteryWarnTimer = 0;
+let hasMovedThisMission = false;
+let missionStartTime = 0;
+
+/* ---------- audio (synthesized, no external files) ---------- */
+let audioCtx = null, masterGain = null, audioEnabled = true;
+let engineOsc = null, engineGain = null, engineFilter = null;
+let windSource = null, windGain = null, windFilter = null;
+let noiseBufferCache = null;
 
 const ACHIEVEMENTS = [
   { id:'steady', icon:'🎯', label:'มือนิ่งไร้รอยขีดข่วน', cond: s=>s.collisionCount===0 },
@@ -584,6 +614,13 @@ const ACHIEVEMENTS = [
   { id:'speed', icon:'🚀', label:'สายเร่งเครื่อง', cond: s=>s.boostActiveTime>5 },
   { id:'anomaly', icon:'🔮', label:'นักล่าสิ่งผิดปกติ', cond: s=>s.collectedAnomaly },
   { id:'efficient', icon:'⏱', label:'จบภารกิจใน 1 Sol', cond: s=>s.sol<=1 },
+];
+
+const TUTORIAL_STEPS = [
+  { text:'ขับหุ่นยนต์ด้วย W A S D / ลูกศร (หรือจอยสติ๊กซ้ายบนมือถือ)', check: s=>s.hasMoved },
+  { text:'เข้าใกล้ก้อนแร่เรืองแสงสีฟ้า แล้วกด E เพื่อเก็บตัวอย่าง', check: s=>s.samplesCollected>=1 },
+  { text:'หาธงสีส้ม แล้วกด F เพื่อถ่ายภาพพาโนรามา', check: s=>s.photosTaken>=1 },
+  { text:'กด V สลับมุมมอง Chase/Navcam และ ☰ เพื่อหยุดพักหรือดูวิธีเล่นเพิ่มเติม', check: s=>s.elapsed>6 },
 ];
 
 const WORLD_SIZE = 340;
@@ -597,6 +634,134 @@ function rand(a,b){ return a + Math.random()*(b-a); }
 function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 function lerp(a,b,t){ return a+(b-a)*t; }
 function dist2(x1,z1,x2,z2){ const dx=x1-x2, dz=z1-z2; return Math.sqrt(dx*dx+dz*dz); }
+
+/* ============================================================
+   AUDIO (synthesized entirely via Web Audio API — no files needed)
+   ============================================================ */
+function initAudio(){
+  if(audioCtx) return;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = audioEnabled ? 0.5 : 0;
+    masterGain.connect(audioCtx.destination);
+  }catch(e){ audioCtx = null; }
+}
+function resumeAudio(){
+  if(audioCtx && audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
+}
+function toggleMute(){
+  audioEnabled = !audioEnabled;
+  if(masterGain) masterGain.gain.setTargetAtTime(audioEnabled?0.5:0, audioCtx.currentTime, 0.05);
+  const btn = document.getElementById('hud-mute-btn');
+  if(btn) btn.textContent = audioEnabled ? '🔊' : '🔇';
+}
+function getNoiseBuffer(){
+  if(noiseBufferCache) return noiseBufferCache;
+  const len = audioCtx.sampleRate*2;
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = Math.random()*2-1;
+  noiseBufferCache = buf;
+  return buf;
+}
+function playTone({freq=440, freqEnd=null, duration=0.15, type='sine', volume=0.3, delay=0}){
+  if(!audioCtx || !audioEnabled) return;
+  const t0 = audioCtx.currentTime+delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if(freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1), t0+duration);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(volume, t0+Math.min(0.02,duration*0.2));
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+duration);
+  osc.connect(gain); gain.connect(masterGain);
+  osc.start(t0); osc.stop(t0+duration+0.02);
+}
+function playNoiseBurst({duration=0.2, volume=0.3, filterType='lowpass', filterFreq=800, delay=0}){
+  if(!audioCtx || !audioEnabled) return;
+  const t0 = audioCtx.currentTime+delay;
+  const src = audioCtx.createBufferSource();
+  src.buffer = getNoiseBuffer();
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = filterType; filt.frequency.value = filterFreq;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(volume, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+duration);
+  src.connect(filt); filt.connect(gain); gain.connect(masterGain);
+  src.start(t0); src.stop(t0+duration+0.02);
+}
+function playCollectSound(){ playTone({freq:520, freqEnd:900, duration:0.18, type:'triangle', volume:0.25}); }
+function playAnomalySound(){
+  playTone({freq:300, freqEnd:200, duration:0.15, type:'sine', volume:0.2});
+  playTone({freq:600, freqEnd:1100, duration:0.3, type:'sine', volume:0.2, delay:0.12});
+}
+function playShutterSound(){
+  playNoiseBurst({duration:0.05, volume:0.35, filterType:'highpass', filterFreq:2500});
+  playTone({freq:1800, duration:0.04, type:'square', volume:0.08, delay:0.05});
+}
+function playThudSound(intensity=1){
+  playNoiseBurst({duration:0.12*intensity, volume:0.3*intensity, filterType:'lowpass', filterFreq:220});
+}
+function playClickSound(){ playTone({freq:700, duration:0.05, type:'square', volume:0.06}); }
+function playWarningBeep(){ playTone({freq:880, duration:0.1, type:'square', volume:0.15}); }
+function playFanfare(){
+  [523,659,784,1046].forEach((f,i)=> playTone({freq:f, duration:0.25, type:'triangle', volume:0.2, delay:i*0.11}));
+}
+
+function startEngineSound(){
+  if(!audioCtx) return;
+  stopEngineSound();
+  engineOsc = audioCtx.createOscillator();
+  engineOsc.type = 'sawtooth';
+  engineOsc.frequency.value = 45;
+  engineFilter = audioCtx.createBiquadFilter();
+  engineFilter.type = 'lowpass';
+  engineFilter.frequency.value = 220;
+  engineGain = audioCtx.createGain();
+  engineGain.gain.value = 0.0001;
+  engineOsc.connect(engineFilter); engineFilter.connect(engineGain); engineGain.connect(masterGain);
+  engineOsc.start();
+}
+function stopEngineSound(){
+  if(engineOsc){ try{ engineOsc.stop(); }catch(e){} engineOsc=null; }
+}
+function updateEngineSound(speedRatio, moving){
+  if(!audioCtx || !engineGain) return;
+  const targetGain = audioEnabled ? (moving ? 0.05+0.09*speedRatio : 0.012) : 0.0001;
+  engineGain.gain.setTargetAtTime(Math.max(targetGain,0.0001), audioCtx.currentTime, 0.1);
+  engineOsc.frequency.setTargetAtTime(42+speedRatio*85, audioCtx.currentTime, 0.15);
+}
+
+function startWindSound(){
+  if(!audioCtx) return;
+  stopWindSound();
+  windSource = audioCtx.createBufferSource();
+  windSource.buffer = getNoiseBuffer();
+  windSource.loop = true;
+  windFilter = audioCtx.createBiquadFilter();
+  windFilter.type = 'bandpass';
+  windFilter.frequency.value = 500;
+  windFilter.Q.value = 0.5;
+  windGain = audioCtx.createGain();
+  windGain.gain.value = 0.0001;
+  windSource.connect(windFilter); windFilter.connect(windGain); windGain.connect(masterGain);
+  windSource.start();
+}
+function stopWindSound(){
+  if(windSource){ try{ windSource.stop(); }catch(e){} windSource=null; }
+}
+function updateWindSound(){
+  if(!audioCtx || !windGain) return;
+  let target = 0.0001;
+  if(planet.hasAtmosphere){
+    target = storm.active ? 0.09 : 0.02;
+  }
+  if(!audioEnabled) target = 0.0001;
+  windGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.5);
+  windFilter.frequency.setTargetAtTime(storm.active?900:500, audioCtx.currentTime, 0.5);
+}
 
 function getHeight(x,z){
   let h = Math.sin(x*0.045)*2 + Math.cos(z*0.05)*2 + Math.sin((x+z)*0.021)*2.4 + Math.sin(x*0.11)*Math.cos(z*0.09)*0.8;
@@ -788,7 +953,7 @@ function initTouchControls(){
   // action buttons
   function bindTap(id, fn){
     const el = document.getElementById(id);
-    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); el.classList.add('active'); fn(); }, {passive:false});
+    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); resumeAudio(); el.classList.add('active'); fn(); }, {passive:false});
     el.addEventListener('touchend', (e)=>{ e.stopPropagation(); el.classList.remove('active'); }, {passive:false});
   }
   bindTap('tbtn-tool', useTool);
@@ -1078,18 +1243,20 @@ function addWheel(group, x,y,z, radius){
   wheelGroup.position.set(x,y,z);
   wheelGroup.rotation.x = Math.PI/2; // orients cylinder axis along the axle (sideways), tread facing outward
 
+  const spinGroup = new THREE.Group(); // rotated over time to simulate rolling, independent of the axle tip above
+
   const tire = new THREE.Mesh(
     new THREE.CylinderGeometry(radius, radius, radius*0.62, 18),
     new THREE.MeshStandardMaterial({ color:0x161616, roughness:0.95, metalness:0.05 })
   );
   tire.castShadow = true; tire.receiveShadow = true;
-  wheelGroup.add(tire);
+  spinGroup.add(tire);
 
   const hub = new THREE.Mesh(
     new THREE.CylinderGeometry(radius*0.42, radius*0.42, radius*0.68, 12),
     new THREE.MeshStandardMaterial({ color:0xaeb4bb, roughness:0.35, metalness:0.85 })
   );
-  wheelGroup.add(hub);
+  spinGroup.add(hub);
 
   for(let i=0;i<6;i++){
     const spoke = new THREE.Mesh(
@@ -1097,10 +1264,11 @@ function addWheel(group, x,y,z, radius){
       new THREE.MeshStandardMaterial({ color:0x888e96, roughness:0.4, metalness:0.75 })
     );
     spoke.rotation.y = (i/6)*Math.PI*2;
-    wheelGroup.add(spoke);
+    spinGroup.add(spoke);
   }
+  wheelGroup.add(spinGroup);
   group.add(wheelGroup);
-  return wheelGroup;
+  return { wheelGroup, spinGroup, radius };
 }
 
 function addHeadlights(g, fx, fy, fz, spread){
@@ -1125,6 +1293,7 @@ function addHeadlights(g, fx, fy, fz, spread){
 
 function buildRover(cfg){
   const g = new THREE.Group();
+  const wheelSpins = [];
   const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness:0.6, metalness:0.35 });
   const accentMat = new THREE.MeshStandardMaterial({ color: cfg.accentColor, roughness:0.5, metalness:0.3 });
   const darkMat = new THREE.MeshStandardMaterial({ color:0x232323, roughness:0.7 });
@@ -1137,7 +1306,7 @@ function buildRover(cfg){
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,1.3), accentMat);
     seat.position.set(-0.4,1.25,0); seat.castShadow=true;
     g.add(seat);
-    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>addWheel(g,p[0],p[1],p[2],0.55));
+    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.55)));
     const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,2.2,6), darkMat);
     antenna.position.set(-1.0,2.0,0.6); antenna.rotation.z=0.3;
     g.add(antenna);
@@ -1147,7 +1316,7 @@ function buildRover(cfg){
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.9,1.6), bodyMat);
     body.position.y = 1.05; body.castShadow = true;
     g.add(body);
-    [[1.0,0.5,0.85],[1.0,0.5,-0.85],[0,0.5,0.9],[0,0.5,-0.9],[-1.0,0.5,0.85],[-1.0,0.5,-0.85]].forEach(p=>addWheel(g,p[0],p[1],p[2],0.42));
+    [[1.0,0.5,0.85],[1.0,0.5,-0.85],[0,0.5,0.9],[0,0.5,-0.9],[-1.0,0.5,0.85],[-1.0,0.5,-0.85]].forEach(p=>wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.42)));
     const mast = new THREE.Mesh(new THREE.BoxGeometry(0.14,1.3,0.14), darkMat);
     mast.position.set(0.3,2.1,0); mast.castShadow=true;
     g.add(mast);
@@ -1226,6 +1395,7 @@ function buildRover(cfg){
   outer.add(g);
   outer.userData.headlights = g.userData.headlights || null;
   outer.userData.headlightLenses = g.userData.headlightLenses || null;
+  outer.userData.wheelSpins = wheelSpins;
   return outer;
 }
 
@@ -1260,7 +1430,16 @@ function startMission(planetKey, roverId, difficultyKey){
   touchInput = { forward:0, turn:0, boost:false };
   wheelDustTimer = 0;
   collisionCount = 0; boostActiveTime = 0; nightObserved = false; stormObserved = false; collectedAnomaly = false;
+  hullIntegrity = 100;
+  hasMovedThisMission = false;
+  missionStartTime = clock ? clock.elapsedTime : 0;
+  tutorialActive = !tutorialSeen;
+  tutorialStep = 0;
   paused = false;
+
+  resumeAudio();
+  startEngineSound();
+  startWindSound();
 
   scene.fog = new THREE.Fog(planet.fogDay, 30, planet.hasAtmosphere ? 170 : 260);
 
@@ -1272,6 +1451,8 @@ function startMission(planetKey, roverId, difficultyKey){
   document.getElementById('obj-samples').querySelector('span:last-child').textContent = `0/${missionSampleTarget}`;
   document.getElementById('obj-photos').querySelector('span:last-child').textContent = `0/${missionPhotoTarget}`;
   document.getElementById('obj-anomaly').style.display = 'none';
+  document.getElementById('tutorial-box').style.display = tutorialActive ? 'block' : 'none';
+  if(tutorialActive) document.getElementById('tutorial-text').textContent = TUTORIAL_STEPS[0].text;
 
   document.getElementById('hud').style.display = 'block';
   gameState = 'playing';
@@ -1289,6 +1470,7 @@ function useTool(){
       collectedAnomaly = true;
       scene.remove(anomalyDeposit.mesh);
       spawnParticles({ position:anomalyDeposit.mesh.position, color:0xe07bff, count:22, spread:1.8, speed:2.6, size:0.18, lifetime:0.8, gravity:-1.2, upBias:1.1 });
+      playAnomalySound();
       const gained = Math.round(25*difficulty.scoreMultiplier);
       score += gained;
       document.getElementById('obj-anomaly').style.display = 'none';
@@ -1308,6 +1490,7 @@ function useTool(){
   best.collected = true;
   scene.remove(best.mesh);
   spawnParticles({ position:best.mesh.position, color:0x8ff5ec, count:16, spread:1.4, speed:2.2, size:0.14, lifetime:0.6, gravity:-1.5, upBias:1.0 });
+  playCollectSound();
   samplesCollected++;
   const gained = Math.round(cfg.sampleValue*difficulty.scoreMultiplier);
   score += gained;
@@ -1327,6 +1510,7 @@ function capturePhoto(){
   }
   if(!best){ toast('ไม่มีจุดพาโนรามาในระยะนี้'); return; }
   best.photographed = true;
+  playShutterSound();
   const gained = Math.round(20*difficulty.scoreMultiplier);
   photosTaken++;
   score += gained;
@@ -1347,6 +1531,8 @@ function checkMissionComplete(){
 function showDebrief(){
   gameState = 'debrief';
   document.getElementById('hud').style.display='none';
+  stopEngineSound(); stopWindSound();
+  playFanfare();
 
   const efficiencyBonus = sol<=1 ? 40 : (sol===2 ? 15 : 0);
   const finalScore = score + efficiencyBonus;
@@ -1363,6 +1549,7 @@ function showDebrief(){
   document.getElementById('debrief-photos').textContent = photosTaken+'/'+missionPhotoTarget;
   document.getElementById('debrief-difficulty').textContent = difficulty.label;
   document.getElementById('debrief-bonus').textContent = '+'+efficiencyBonus;
+  document.getElementById('debrief-hull').textContent = Math.round(hullIntegrity)+'%';
 
   const bestKey = `${planet.key}:${roverCfg.id}:${difficulty.key}`;
   const prevBest = sessionBests[bestKey];
@@ -1473,6 +1660,7 @@ function updateSky(){
 function updateBattery(delta, moving){
   const cfg = roverCfg;
   let drain = cfg.drainRate*delta*(moving?1:0.4)*(boosting?1.7:1)*difficulty.drainMultiplier;
+  if(hullIntegrity<50) drain *= 1.25;
   if(cfg.power==='rtg'){
     battery -= drain*0.25;
   } else if(cfg.power==='solar'){
@@ -1485,6 +1673,13 @@ function updateBattery(delta, moving){
     battery += trickle - drain;
   }
   battery = clamp(battery,0,100);
+
+  if(battery<15){
+    lowBatteryWarnTimer -= delta;
+    if(lowBatteryWarnTimer<=0){ playWarningBeep(); lowBatteryWarnTimer = 3.5; }
+  } else {
+    lowBatteryWarnTimer = 0;
+  }
 }
 
 function updateStorm(delta){
@@ -1514,6 +1709,7 @@ function updateRoverMovement(delta){
   boosting = !!keys['ShiftLeft'] || !!keys['ShiftRight'] || touchInput.boost;
 
   const moving = Math.abs(forward)>0.05;
+  if(moving) hasMovedThisMission = true;
   let speedMult = 1;
   const solarDead = (cfg.power==='solar' && battery<=0);
   if(solarDead) speedMult = 0;
@@ -1523,14 +1719,17 @@ function updateRoverMovement(delta){
   const slipPenalty = cfg.id==='lrv' ? slip*0.25 : slip*0.55;
   speedMult *= (1-slipPenalty);
 
+  const hullFactor = hullIntegrity<70 ? clamp(hullIntegrity/70, 0.35, 1) : 1;
+  speedMult *= hullFactor;
+
   if(boosting && battery>4 && speedMult>0) speedMult *= (cfg.id==='lrv'?1.8:1.35);
   if(boosting && battery>4 && moving) boostActiveTime += delta;
 
   if(Math.abs(turn)>0.05){
     roverGroup.rotation.y += turn*1.6*delta*(moving?1:0.8);
   }
+  const spd = cfg.speed*speedMult*forward*delta;
   if(moving && speedMult>0){
-    const spd = cfg.speed*speedMult*forward*delta;
     const nx = roverGroup.position.x - Math.sin(roverGroup.rotation.y)*spd;
     const nz = roverGroup.position.z - Math.cos(roverGroup.rotation.y)*spd;
     let blocked = false;
@@ -1538,6 +1737,12 @@ function updateRoverMovement(delta){
       if(dist2(nx,nz,r.x,r.z) < r.radius+1.1){
         blocked=true;
         collisionCount++;
+        const impactRatio = clamp(Math.abs(cfg.speed*speedMult)/cfg.speed, 0, 1);
+        const wasAbove50 = hullIntegrity>=50, wasAbove20 = hullIntegrity>=20;
+        hullIntegrity = clamp(hullIntegrity - clamp(3+impactRatio*7, 3, 10), 0, 100);
+        playThudSound(clamp(0.5+impactRatio, 0.5, 1.4));
+        if(wasAbove50 && hullIntegrity<50) toast('⚠ ตัวถังเริ่มเสียหาย ขับระวังขึ้น');
+        if(wasAbove20 && hullIntegrity<20) toast('⚠ ตัวถังเสียหายหนัก ประสิทธิภาพลดลงมาก');
         spawnParticles({
           position:{x:(nx+roverGroup.position.x)/2, y:roverGroup.position.y+0.4, z:(nz+roverGroup.position.z)/2},
           color: planet.rockColorA, count:8, spread:1.2, speed:1.6, size:0.16, lifetime:0.5, gravity:-3, upBias:0.5
@@ -1549,6 +1754,13 @@ function updateRoverMovement(delta){
       roverGroup.position.x = clamp(nx, -WORLD_SIZE/2+4, WORLD_SIZE/2-4);
       roverGroup.position.z = clamp(nz, -WORLD_SIZE/2+4, WORLD_SIZE/2-4);
     }
+  }
+
+  // Spin the wheels based on intended travel this frame regardless of whether a collision
+  // blocked the actual position update — a wheel spinning uselessly against a rock reads
+  // as "stuck", which is exactly the real-world behavior it's depicting.
+  if(roverGroup.userData.wheelSpins){
+    roverGroup.userData.wheelSpins.forEach(w=>{ w.spinGroup.rotation.y += spd / w.radius; });
   }
 
   // Sample ground height at the rover's four corners (not just its center) so the tilt
@@ -1582,6 +1794,8 @@ function updateRoverMovement(delta){
   }
 
   updateBattery(delta, moving);
+  updateEngineSound(clamp(Math.abs(speedMult),0,1), moving && speedMult>0.05);
+  updateWindSound();
 
   return { moving, speed: moving?Math.abs(cfg.speed*speedMult):0, slip, solarDead };
 }
@@ -1718,6 +1932,11 @@ function updateHUD(moveInfo){
   const icons = { rtg:'☢', solar:'☀', battery:'🔋' };
   document.getElementById('hud-power-icon').textContent = icons[roverCfg.power]||'⚡';
 
+  const hullFill = document.getElementById('hull-fill');
+  hullFill.style.width = hullIntegrity.toFixed(0)+'%';
+  hullFill.style.background = hullIntegrity>70 ? '#4ade80' : hullIntegrity>35 ? '#ffb454' : '#ff5f56';
+  document.getElementById('hull-pct').textContent = hullIntegrity.toFixed(0)+'%';
+
   document.getElementById('tel-speed').textContent = moveInfo.speed.toFixed(1)+' m/s';
   document.getElementById('tel-pos').textContent = fakeCoord(roverGroup.position.x, roverGroup.position.z);
   document.getElementById('tel-terrain').textContent = moveInfo.slip>0.5 ? 'Loose Regolith' : moveInfo.slip>0.15 ? 'Uneven' : 'Nominal';
@@ -1728,11 +1947,37 @@ function updateHUD(moveInfo){
     banner.style.display='block'; banner.textContent='⚠ LOW POWER — AWAITING SUNLIGHT';
   } else if(planet.hasDustStorm && storm.active){
     banner.style.display='block'; banner.textContent='⚠ DUST STORM — VISIBILITY REDUCED';
+  } else if(hullIntegrity<20){
+    banner.style.display='block'; banner.textContent='⚠ STRUCTURAL DAMAGE CRITICAL';
   } else if(battery<15){
     banner.style.display='block'; banner.textContent='⚠ BATTERY CRITICAL';
   } else {
     banner.style.display='none';
   }
+}
+
+function updateTutorial(moveInfo){
+  if(!tutorialActive) return;
+  const s = {
+    hasMoved: hasMovedThisMission,
+    samplesCollected, photosTaken,
+    elapsed: clock.elapsedTime - missionStartTime
+  };
+  const step = TUTORIAL_STEPS[tutorialStep];
+  if(!step){ tutorialActive = false; tutorialSeen = true; document.getElementById('tutorial-box').style.display='none'; return; }
+  if(step.check(s)){
+    tutorialStep++;
+    if(tutorialStep>=TUTORIAL_STEPS.length){
+      tutorialActive = false; tutorialSeen = true;
+      document.getElementById('tutorial-box').style.display='none';
+    } else {
+      document.getElementById('tutorial-text').textContent = TUTORIAL_STEPS[tutorialStep].text;
+    }
+  }
+}
+function dismissTutorial(){
+  tutorialActive = false; tutorialSeen = true;
+  document.getElementById('tutorial-box').style.display='none';
 }
 
 function animate(){
@@ -1750,6 +1995,7 @@ function animate(){
     updateHUD(moveInfo);
     updateMinimap();
     updateParticles(delta);
+    updateTutorial(moveInfo);
   }
   renderer.render(scene, camera);
 }
@@ -1791,6 +2037,7 @@ function renderRoverList(planetKey){
 
 document.querySelectorAll('#screen-planet .card').forEach(card=>{
   card.addEventListener('click', ()=>{
+    initAudio(); resumeAudio(); playClickSound();
     const key = card.dataset.planet;
     document.getElementById('screen-planet').style.display='none';
     document.getElementById('screen-rover').style.display='flex';
@@ -1799,37 +2046,44 @@ document.querySelectorAll('#screen-planet .card').forEach(card=>{
   });
 });
 document.getElementById('back-to-planet').addEventListener('click', ()=>{
+  playClickSound();
   document.getElementById('screen-rover').style.display='none';
   document.getElementById('screen-planet').style.display='flex';
   gameState = 'menu-planet';
 });
 document.getElementById('back-to-rover').addEventListener('click', ()=>{
+  playClickSound();
   document.getElementById('screen-difficulty').style.display='none';
   document.getElementById('screen-rover').style.display='flex';
   gameState = 'menu-rover';
 });
 document.querySelectorAll('#screen-difficulty .diff-card').forEach(card=>{
   card.addEventListener('click', ()=>{
+    playClickSound();
     document.getElementById('screen-difficulty').style.display='none';
     startMission(selectedPlanetKey, selectedRoverId, card.dataset.diff);
   });
 });
 document.getElementById('btn-restart-same').addEventListener('click', ()=>{
+  playClickSound();
   document.getElementById('debrief').style.display='none';
   startMission(planet.key, roverCfg.id, difficulty.key);
 });
-document.getElementById('btn-restart-menu').addEventListener('click', quitToMainMenu);
+document.getElementById('btn-restart-menu').addEventListener('click', ()=>{ playClickSound(); quitToMainMenu(); });
 
-document.getElementById('hud-menu-btn').addEventListener('click', togglePause);
-document.getElementById('pause-resume').addEventListener('click', togglePause);
+document.getElementById('hud-menu-btn').addEventListener('click', ()=>{ playClickSound(); togglePause(); });
+document.getElementById('hud-mute-btn').addEventListener('click', toggleMute);
+document.getElementById('tutorial-dismiss').addEventListener('click', dismissTutorial);
+document.getElementById('pause-resume').addEventListener('click', ()=>{ playClickSound(); togglePause(); });
 document.getElementById('pause-help').addEventListener('click', ()=>{
+  playClickSound();
   document.getElementById('pause-menu').style.display='none';
   document.getElementById('help').style.display='flex';
   paused = true;
 });
-document.getElementById('pause-quit').addEventListener('click', quitToMainMenu);
+document.getElementById('pause-quit').addEventListener('click', ()=>{ playClickSound(); quitToMainMenu(); });
 
-document.getElementById('help-close').addEventListener('click', toggleHelp);
+document.getElementById('help-close').addEventListener('click', ()=>{ playClickSound(); toggleHelp(); });
 document.getElementById('help').addEventListener('click', (e)=>{
   if(e.target.id==='help') toggleHelp();
 });
@@ -1839,6 +2093,7 @@ function quitToMainMenu(){
   document.getElementById('pause-menu').style.display='none';
   document.getElementById('help').style.display='none';
   document.getElementById('hud').style.display='none';
+  stopEngineSound(); stopWindSound();
   paused = false;
   gameState = 'menu-planet';
   document.getElementById('screen-planet').style.display='flex';
