@@ -131,6 +131,8 @@
     font-family:'Space Mono',monospace;font-weight:400;}
   .obj-item{display:flex;justify-content:space-between;color:var(--dim);padding:2px 0;font-size:12px;}
   .obj-item.done{color:var(--good);}
+  .obj-compass-row{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);color:var(--cyan);}
+  #compass-arrow{display:inline-block;transition:transform 0.15s ease-out;}
 
   #minimap-wrap{position:absolute;bottom:16px;right:52px;width:150px;height:150px;border-radius:50%;
     border:1px solid var(--line);background:var(--panel);overflow:hidden;}
@@ -391,6 +393,7 @@
     <div class="obj-item" id="obj-samples"><span>Rock Samples</span><span>0/0</span></div>
     <div class="obj-item" id="obj-photos"><span>Panoramas</span><span>0/0</span></div>
     <div class="obj-item" id="obj-anomaly" style="display:none;color:var(--cyan);"><span>⚠ Anomaly Detected</span><span>?</span></div>
+    <div class="obj-item obj-compass-row"><span>เป้าหมายใกล้สุด</span><span><span id="compass-arrow">▲</span> <span id="compass-dist">--</span></span></div>
   </div>
 
   <div class="warning-banner" id="warning-banner">⚠ WARNING</div>
@@ -592,10 +595,16 @@ let particleSystems = [];
 let sunGlowSprite = null;
 let starTexture = null;
 let wheelDustTimer = 0;
+let trackMarks = [];
+let trackDistanceAccum = 0;
+const MAX_TRACK_COUNT = 260;
+const TRACK_STAMP_DISTANCE = 0.55;
+const TRACK_LIFETIME = 55;
 let collisionCount = 0, boostActiveTime = 0, nightObserved = false, stormObserved = false;
 let anomalyDeposit = null, collectedAnomaly = false;
 let sessionBests = {};
 let hullIntegrity = 100;
+let collisionCooldown = 0;
 let tutorialSeen = false, tutorialActive = false, tutorialStep = 0;
 let lowBatteryWarnTimer = 0;
 let hasMovedThisMission = false;
@@ -606,6 +615,7 @@ let audioCtx = null, masterGain = null, audioEnabled = true;
 let engineOsc = null, engineGain = null, engineFilter = null;
 let windSource = null, windGain = null, windFilter = null;
 let noiseBufferCache = null;
+let themeMusicPlaying = false, themeNodes = [], themeTimeoutId = null;
 
 const ACHIEVEMENTS = [
   { id:'steady', icon:'🎯', label:'มือนิ่งไร้รอยขีดข่วน', cond: s=>s.collisionCount===0 },
@@ -626,6 +636,8 @@ const TUTORIAL_STEPS = [
 const WORLD_SIZE = 340;
 const SAFE_ZONE = 22;
 const TWILIGHT_BAND = 0.18;
+const BATTERY_DRAIN_SCALE = 0.75;
+const BATTERY_CHARGE_SCALE = 1.25;
 
 /* ============================================================
    UTILITIES
@@ -708,6 +720,56 @@ function playClickSound(){ playTone({freq:700, duration:0.05, type:'square', vol
 function playWarningBeep(){ playTone({freq:880, duration:0.1, type:'square', volume:0.15}); }
 function playFanfare(){
   [523,659,784,1046].forEach((f,i)=> playTone({freq:f, duration:0.25, type:'triangle', volume:0.2, delay:i*0.11}));
+}
+
+function startThemeMusic(){
+  if(!audioCtx || themeMusicPlaying) return;
+  themeMusicPlaying = true;
+  const now = audioCtx.currentTime;
+  const droneGain = audioCtx.createGain();
+  droneGain.gain.setValueAtTime(0.0001, now);
+  droneGain.gain.exponentialRampToValueAtTime(0.07, now+3);
+  droneGain.connect(masterGain);
+  themeNodes.push(droneGain);
+
+  // Spacious open-fifth drone (A2 / E3 / A3) — slow, wide, unhurried, mission-briefing mood
+  [110, 164.81, 220].forEach((f,i)=>{
+    const osc = audioCtx.createOscillator();
+    osc.type = i===1 ? 'triangle' : 'sine';
+    osc.frequency.value = f;
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.045 + i*0.017;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 1.4;
+    lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
+    osc.connect(droneGain);
+    lfo.start(); osc.start();
+    themeNodes.push(osc, lfo);
+  });
+
+  scheduleThemeTwinkles();
+}
+function scheduleThemeTwinkles(){
+  if(!themeMusicPlaying) return;
+  if(audioEnabled){
+    const scale = [440, 493.88, 587.33, 659.25, 784, 880, 987.77];
+    const freq = scale[Math.floor(Math.random()*scale.length)];
+    playTone({freq, duration:2.2, type:'sine', volume:0.045});
+  }
+  themeTimeoutId = setTimeout(scheduleThemeTwinkles, rand(2200, 4200));
+}
+function stopThemeMusic(){
+  themeMusicPlaying = false;
+  if(themeTimeoutId){ clearTimeout(themeTimeoutId); themeTimeoutId = null; }
+  const now = audioCtx ? audioCtx.currentTime : 0;
+  themeNodes.forEach(n=>{
+    try{ if(n.gain) n.gain.setTargetAtTime(0.0001, now, 0.3); }catch(e){}
+  });
+  const nodesToStop = themeNodes;
+  themeNodes = [];
+  setTimeout(()=>{
+    nodesToStop.forEach(n=>{ try{ n.stop && n.stop(); }catch(e){} try{ n.disconnect(); }catch(e){} });
+  }, 450);
 }
 
 function startEngineSound(){
@@ -1012,6 +1074,7 @@ function clearWorld(){
   anomalyDeposit = null;
   particleSystems.forEach(ps=>{ scene.remove(ps.points); ps.points.geometry.dispose(); ps.points.material.dispose(); });
   particleSystems = [];
+  clearTrackMarks();
   rocks=[]; deposits=[]; waypoints=[]; craters=[];
 }
 
@@ -1237,33 +1300,82 @@ function updateParticles(delta){
   }
 }
 
+/* ---------- tire tracks ---------- */
+function stampTrackMark(){
+  const yaw = roverGroup.rotation.y;
+  const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+  const px = roverGroup.position.x, pz = roverGroup.position.z;
+  [-1,1].forEach(side=>{
+    const ox = px + rightX*0.85*side;
+    const oz = pz + rightZ*0.85*side;
+    const geo = new THREE.PlaneGeometry(0.16, 0.65);
+    geo.rotateX(-Math.PI/2);
+    const mat = new THREE.MeshBasicMaterial({
+      color:0x000000, transparent:true, opacity:0.32, depthWrite:false,
+      polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.y = yaw;
+    mesh.position.set(ox, getHeight(ox,oz)+0.015, oz);
+    scene.add(mesh);
+    trackMarks.push({ mesh, age:0 });
+  });
+  while(trackMarks.length > MAX_TRACK_COUNT){
+    const old = trackMarks.shift();
+    scene.remove(old.mesh); old.mesh.geometry.dispose(); old.mesh.material.dispose();
+  }
+}
+function updateTrackMarks(delta){
+  const fadeStart = TRACK_LIFETIME*0.7;
+  for(let i=trackMarks.length-1;i>=0;i--){
+    const t = trackMarks[i];
+    t.age += delta;
+    if(t.age>=TRACK_LIFETIME){
+      scene.remove(t.mesh); t.mesh.geometry.dispose(); t.mesh.material.dispose();
+      trackMarks.splice(i,1); continue;
+    }
+    if(t.age>fadeStart){
+      t.mesh.material.opacity = 0.32*(1-(t.age-fadeStart)/(TRACK_LIFETIME-fadeStart));
+    }
+  }
+}
+function clearTrackMarks(){
+  trackMarks.forEach(t=>{ scene.remove(t.mesh); t.mesh.geometry.dispose(); t.mesh.material.dispose(); });
+  trackMarks = [];
+  trackDistanceAccum = 0;
+}
+
 /* ---------- rover model ---------- */
-function addWheel(group, x,y,z, radius){
+function addWheel(group, x,y,z, radius, wireMesh=false){
   const wheelGroup = new THREE.Group();
   wheelGroup.position.set(x,y,z);
   wheelGroup.rotation.x = Math.PI/2; // orients cylinder axis along the axle (sideways), tread facing outward
 
   const spinGroup = new THREE.Group(); // rotated over time to simulate rolling, independent of the axle tip above
 
-  const tire = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius, radius, radius*0.62, 18),
-    new THREE.MeshStandardMaterial({ color:0x161616, roughness:0.95, metalness:0.05 })
-  );
+  const tireMat = wireMesh
+    ? new THREE.MeshStandardMaterial({ color:0xc7cbc6, roughness:0.45, metalness:0.75 })
+    : new THREE.MeshStandardMaterial({ color:0x161616, roughness:0.95, metalness:0.05 });
+  const tire = wireMesh
+    ? new THREE.Mesh(new THREE.TorusGeometry(radius*0.86, radius*0.15, 8, 20), tireMat)
+    : new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, radius*0.62, 18), tireMat);
   tire.castShadow = true; tire.receiveShadow = true;
   spinGroup.add(tire);
 
   const hub = new THREE.Mesh(
     new THREE.CylinderGeometry(radius*0.42, radius*0.42, radius*0.68, 12),
-    new THREE.MeshStandardMaterial({ color:0xaeb4bb, roughness:0.35, metalness:0.85 })
+    new THREE.MeshStandardMaterial({ color: wireMesh?0x8f948f:0xaeb4bb, roughness:0.35, metalness:0.85 })
   );
   spinGroup.add(hub);
 
-  for(let i=0;i<6;i++){
+  const spokeCount = wireMesh ? 10 : 6;
+  const spokeMat = new THREE.MeshStandardMaterial({ color: wireMesh?0xaab0ab:0x888e96, roughness:0.4, metalness:0.75 });
+  for(let i=0;i<spokeCount;i++){
     const spoke = new THREE.Mesh(
-      new THREE.BoxGeometry(radius*1.5, radius*0.08, radius*0.14),
-      new THREE.MeshStandardMaterial({ color:0x888e96, roughness:0.4, metalness:0.75 })
+      new THREE.BoxGeometry(radius*1.5, radius*0.07, radius*(wireMesh?0.06:0.14)),
+      spokeMat
     );
-    spoke.rotation.y = (i/6)*Math.PI*2;
+    spoke.rotation.y = (i/spokeCount)*Math.PI*2;
     spinGroup.add(spoke);
   }
   wheelGroup.add(spinGroup);
@@ -1306,7 +1418,7 @@ function buildRover(cfg){
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,1.3), accentMat);
     seat.position.set(-0.4,1.25,0); seat.castShadow=true;
     g.add(seat);
-    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.55)));
+    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.55,true)));
     const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,2.2,6), darkMat);
     antenna.position.set(-1.0,2.0,0.6); antenna.rotation.z=0.3;
     g.add(antenna);
@@ -1330,16 +1442,18 @@ function buildRover(cfg){
     g.add(eyeL, eyeR);
     mastAnchor = { x:0.3, y:2.8, z:0 };
 
-    const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.02,1.5,6), darkMat);
-    whip.position.set(-0.65,1.95,0.55); whip.rotation.z = 0.18;
-    g.add(whip);
-    const dish = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.26,0.05,0.13,16),
-      new THREE.MeshStandardMaterial({ color:0xd8d8d8, metalness:0.6, roughness:0.35, side:THREE.DoubleSide })
-    );
-    dish.rotation.x = Math.PI/2.3;
-    dish.position.set(-0.55,2.1,-0.5);
-    g.add(dish);
+    if(cfg.id==='curiosity' || cfg.id==='perseverance'){
+      const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.02,1.5,6), darkMat);
+      whip.position.set(-0.65,1.95,0.55); whip.rotation.z = 0.18;
+      g.add(whip);
+      const dish = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.26,0.05,0.13,16),
+        new THREE.MeshStandardMaterial({ color:0xd8d8d8, metalness:0.6, roughness:0.35, side:THREE.DoubleSide })
+      );
+      dish.rotation.x = Math.PI/2.3;
+      dish.position.set(-0.55,2.1,-0.5);
+      g.add(dish);
+    }
 
     if(cfg.power==='rtg'){
       const rtg = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.9,10), darkMat);
@@ -1369,6 +1483,13 @@ function buildRover(cfg){
       const lens = new THREE.Mesh(new THREE.SphereGeometry(0.1,10,10), new THREE.MeshStandardMaterial({color:0xff3300, emissive:0x991100, emissiveIntensity:0.7}));
       lens.position.set(0.3,3.0,0);
       g.add(lens);
+      const armBase = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.13,0.13), darkMat);
+      armBase.position.set(1.35,0.85,0.45); armBase.rotation.y=0.2;
+      const armFore = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.1,0.1), darkMat);
+      armFore.position.set(2.0,0.72,0.55); armFore.rotation.y=-0.35;
+      const turret = new THREE.Mesh(new THREE.SphereGeometry(0.17,10,10), accentMat);
+      turret.position.set(2.4,0.62,0.62);
+      g.add(armBase, armFore, turret);
     }
     if(cfg.id==='perseverance'){
       const arm = new THREE.Mesh(new THREE.BoxGeometry(1.1,0.14,0.14), darkMat);
@@ -1382,6 +1503,9 @@ function buildRover(cfg){
       pL2.position.set(0.3,2.2,1.15); pL2.rotation.x=-0.5;
       const pR2 = pL2.clone(); pR2.position.z=-1.15; pR2.rotation.x=0.5;
       g.add(pL2,pR2);
+      const gpr = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.16,0.42), darkMat);
+      gpr.position.set(0.15,0.42,0);
+      g.add(gpr);
     }
     addHeadlights(g, 1.15, 0.62, 0, 0.68);
   }
@@ -1430,6 +1554,7 @@ function startMission(planetKey, roverId, difficultyKey){
   touchInput = { forward:0, turn:0, boost:false };
   wheelDustTimer = 0;
   collisionCount = 0; boostActiveTime = 0; nightObserved = false; stormObserved = false; collectedAnomaly = false;
+  collisionCooldown = 0;
   hullIntegrity = 100;
   hasMovedThisMission = false;
   missionStartTime = clock ? clock.elapsedTime : 0;
@@ -1438,6 +1563,7 @@ function startMission(planetKey, roverId, difficultyKey){
   paused = false;
 
   resumeAudio();
+  stopThemeMusic();
   startEngineSound();
   startWindSound();
 
@@ -1659,17 +1785,17 @@ function updateSky(){
 
 function updateBattery(delta, moving){
   const cfg = roverCfg;
-  let drain = cfg.drainRate*delta*(moving?1:0.4)*(boosting?1.7:1)*difficulty.drainMultiplier;
+  let drain = cfg.drainRate*delta*(moving?1:0.4)*(boosting?1.7:1)*difficulty.drainMultiplier*BATTERY_DRAIN_SCALE;
   if(hullIntegrity<50) drain *= 1.25;
   if(cfg.power==='rtg'){
     battery -= drain*0.25;
   } else if(cfg.power==='solar'){
     let sunFactor = Math.max(0, Math.sin(sunAngle));
     if(planet.hasDustStorm && storm.active) sunFactor *= 0.12;
-    const charge = cfg.chargeRate*sunFactor*delta*difficulty.chargeMultiplier;
+    const charge = cfg.chargeRate*sunFactor*delta*difficulty.chargeMultiplier*BATTERY_CHARGE_SCALE;
     battery += charge - drain;
   } else {
-    const trickle = cfg.chargeRate*Math.max(0,Math.sin(sunAngle))*delta*0.3*difficulty.chargeMultiplier;
+    const trickle = cfg.chargeRate*Math.max(0,Math.sin(sunAngle))*delta*0.3*difficulty.chargeMultiplier*BATTERY_CHARGE_SCALE;
     battery += trickle - drain;
   }
   battery = clamp(battery,0,100);
@@ -1729,6 +1855,7 @@ function updateRoverMovement(delta){
     roverGroup.rotation.y += turn*1.6*delta*(moving?1:0.8);
   }
   const spd = cfg.speed*speedMult*forward*delta;
+  if(collisionCooldown>0) collisionCooldown -= delta;
   if(moving && speedMult>0){
     const nx = roverGroup.position.x - Math.sin(roverGroup.rotation.y)*spd;
     const nz = roverGroup.position.z - Math.cos(roverGroup.rotation.y)*spd;
@@ -1736,17 +1863,20 @@ function updateRoverMovement(delta){
     for(const r of rocks){
       if(dist2(nx,nz,r.x,r.z) < r.radius+1.1){
         blocked=true;
-        collisionCount++;
-        const impactRatio = clamp(Math.abs(cfg.speed*speedMult)/cfg.speed, 0, 1);
-        const wasAbove50 = hullIntegrity>=50, wasAbove20 = hullIntegrity>=20;
-        hullIntegrity = clamp(hullIntegrity - clamp(3+impactRatio*7, 3, 10), 0, 100);
-        playThudSound(clamp(0.5+impactRatio, 0.5, 1.4));
-        if(wasAbove50 && hullIntegrity<50) toast('⚠ ตัวถังเริ่มเสียหาย ขับระวังขึ้น');
-        if(wasAbove20 && hullIntegrity<20) toast('⚠ ตัวถังเสียหายหนัก ประสิทธิภาพลดลงมาก');
-        spawnParticles({
-          position:{x:(nx+roverGroup.position.x)/2, y:roverGroup.position.y+0.4, z:(nz+roverGroup.position.z)/2},
-          color: planet.rockColorA, count:8, spread:1.2, speed:1.6, size:0.16, lifetime:0.5, gravity:-3, upBias:0.5
-        });
+        if(collisionCooldown<=0){
+          collisionCooldown = 0.8;
+          collisionCount++;
+          const impactRatio = clamp(Math.abs(cfg.speed*speedMult)/cfg.speed, 0, 1);
+          const wasAbove50 = hullIntegrity>=50, wasAbove20 = hullIntegrity>=20;
+          hullIntegrity = clamp(hullIntegrity - clamp(3+impactRatio*7, 3, 10), 0, 100);
+          playThudSound(clamp(0.5+impactRatio, 0.5, 1.4));
+          if(wasAbove50 && hullIntegrity<50) toast('⚠ ตัวถังเริ่มเสียหาย ขับระวังขึ้น');
+          if(wasAbove20 && hullIntegrity<20) toast('⚠ ตัวถังเสียหายหนัก ประสิทธิภาพลดลงมาก');
+          spawnParticles({
+            position:{x:(nx+roverGroup.position.x)/2, y:roverGroup.position.y+0.4, z:(nz+roverGroup.position.z)/2},
+            color: planet.rockColorA, count:8, spread:1.2, speed:1.6, size:0.16, lifetime:0.5, gravity:-3, upBias:0.5
+          });
+        }
         break;
       }
     }
@@ -1790,6 +1920,11 @@ function updateRoverMovement(delta){
         color: planet.rockColorA, count:4, spread:0.5, speed:0.7, size: planet.hasAtmosphere?0.22:0.14,
         lifetime: planet.hasAtmosphere?1.1:0.5, gravity: planet.hasAtmosphere?-0.6:-1.6, upBias:0.4
       });
+    }
+    trackDistanceAccum += Math.abs(spd);
+    if(trackDistanceAccum >= TRACK_STAMP_DISTANCE){
+      trackDistanceAccum = 0;
+      stampTrackMark();
     }
   }
 
@@ -1848,6 +1983,36 @@ function updatePrompt(){
   else if(bestType==='anomaly'){ msg = '[E] ตรวจสอบสิ่งผิดปกติ'; }
   if(msg){ promptEl.textContent = msg; promptEl.style.display='block'; }
   else promptEl.style.display='none';
+}
+
+function updateCompass(){
+  let bestD = Infinity, bestX=0, bestZ=0, found=false;
+  for(const d of deposits){
+    if(d.collected) continue;
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, d.x, d.z);
+    if(dd<bestD){ bestD=dd; bestX=d.x; bestZ=d.z; found=true; }
+  }
+  for(const w of waypoints){
+    if(w.photographed) continue;
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, w.x, w.z);
+    if(dd<bestD){ bestD=dd; bestX=w.x; bestZ=w.z; found=true; }
+  }
+  if(anomalyDeposit && !anomalyDeposit.collected && document.getElementById('obj-anomaly').style.display!=='none'){
+    const dd = dist2(roverGroup.position.x, roverGroup.position.z, anomalyDeposit.x, anomalyDeposit.z);
+    if(dd<bestD){ bestD=dd; bestX=anomalyDeposit.x; bestZ=anomalyDeposit.z; found=true; }
+  }
+  const arrowEl = document.getElementById('compass-arrow');
+  const distEl = document.getElementById('compass-dist');
+  if(!found){ arrowEl.style.opacity=0.25; distEl.textContent='—'; return; }
+  const dx = bestX - roverGroup.position.x, dz = bestZ - roverGroup.position.z;
+  const targetBearing = Math.atan2(-dx, -dz);
+  const cameraYaw = roverGroup.rotation.y + (viewMode==='nav' ? yawOffset : 0);
+  let rel = targetBearing - cameraYaw;
+  while(rel > Math.PI) rel -= Math.PI*2;
+  while(rel < -Math.PI) rel += Math.PI*2;
+  arrowEl.style.opacity = 1;
+  arrowEl.style.transform = `rotate(${-rel*180/Math.PI}deg)`;
+  distEl.textContent = Math.round(bestD)+'m';
 }
 
 function updateMinimap(){
@@ -1995,6 +2160,8 @@ function animate(){
     updateHUD(moveInfo);
     updateMinimap();
     updateParticles(delta);
+    updateTrackMarks(delta);
+    updateCompass();
     updateTutorial(moveInfo);
   }
   renderer.render(scene, camera);
@@ -2037,7 +2204,7 @@ function renderRoverList(planetKey){
 
 document.querySelectorAll('#screen-planet .card').forEach(card=>{
   card.addEventListener('click', ()=>{
-    initAudio(); resumeAudio(); playClickSound();
+    initAudio(); resumeAudio(); playClickSound(); startThemeMusic();
     const key = card.dataset.planet;
     document.getElementById('screen-planet').style.display='none';
     document.getElementById('screen-rover').style.display='flex';
@@ -2094,6 +2261,7 @@ function quitToMainMenu(){
   document.getElementById('help').style.display='none';
   document.getElementById('hud').style.display='none';
   stopEngineSound(); stopWindSound();
+  startThemeMusic();
   paused = false;
   gameState = 'menu-planet';
   document.getElementById('screen-planet').style.display='flex';
