@@ -608,6 +608,7 @@ let collisionCooldown = 0;
 let tutorialSeen = false, tutorialActive = false, tutorialStep = 0;
 let lowBatteryWarnTimer = 0;
 let hasMovedThisMission = false;
+let solarHibernating = false;
 let missionStartTime = 0;
 
 /* ---------- audio (synthesized, no external files) ---------- */
@@ -638,6 +639,7 @@ const SAFE_ZONE = 22;
 const TWILIGHT_BAND = 0.18;
 const BATTERY_DRAIN_SCALE = 0.75;
 const BATTERY_CHARGE_SCALE = 1.25;
+const ROVER_SPEED_SCALE = 1.3;
 
 /* ============================================================
    UTILITIES
@@ -1528,7 +1530,8 @@ function buildRover(cfg){
    ============================================================ */
 function startMission(planetKey, roverId, difficultyKey){
   planet = PLANETS[planetKey];
-  roverCfg = ROVERS.find(r=>r.id===roverId);
+  roverCfg = { ...ROVERS.find(r=>r.id===roverId) };
+  roverCfg.speed *= ROVER_SPEED_SCALE;
   difficulty = DIFFICULTIES[difficultyKey] || DIFFICULTIES.normal;
   missionSampleTarget = difficulty.depositCount;
   missionPhotoTarget = difficulty.waypointCount;
@@ -1555,6 +1558,7 @@ function startMission(planetKey, roverId, difficultyKey){
   wheelDustTimer = 0;
   collisionCount = 0; boostActiveTime = 0; nightObserved = false; stormObserved = false; collectedAnomaly = false;
   collisionCooldown = 0;
+  solarHibernating = false;
   hullIntegrity = 100;
   hasMovedThisMission = false;
   missionStartTime = clock ? clock.elapsedTime : 0;
@@ -1783,9 +1787,11 @@ function updateSky(){
   if(stormOverlay) stormOverlay.classList.toggle('active', !!(planet.hasDustStorm && storm.active));
 }
 
-function updateBattery(delta, moving){
+function updateBattery(delta, moving, hibernating){
   const cfg = roverCfg;
-  let drain = cfg.drainRate*delta*(moving?1:0.4)*(boosting?1.7:1)*difficulty.drainMultiplier*BATTERY_DRAIN_SCALE;
+  const effMoving = moving && !hibernating;
+  const effBoost = boosting && !hibernating;
+  let drain = cfg.drainRate*delta*(effMoving?1:0.4)*(effBoost?1.7:1)*difficulty.drainMultiplier*BATTERY_DRAIN_SCALE;
   if(hullIntegrity<50) drain *= 1.25;
   if(cfg.power==='rtg'){
     battery -= drain*0.25;
@@ -1837,7 +1843,17 @@ function updateRoverMovement(delta){
   const moving = Math.abs(forward)>0.05;
   if(moving) hasMovedThisMission = true;
   let speedMult = 1;
-  const solarDead = (cfg.power==='solar' && battery<=0);
+
+  if(cfg.power==='solar'){
+    if(!solarHibernating && battery<=0){
+      solarHibernating = true;
+      toast('⚠ พลังงานหมด — จอดพักชาร์จจนกว่าจะถึง 20%');
+    } else if(solarHibernating && battery>=20){
+      solarHibernating = false;
+      toast('🔋 ชาร์จพอแล้ว พร้อมเคลื่อนที่ต่อ');
+    }
+  }
+  const solarDead = solarHibernating;
   if(solarDead) speedMult = 0;
   else if(cfg.power==='battery' && battery<15) speedMult = 0.5;
 
@@ -1928,7 +1944,7 @@ function updateRoverMovement(delta){
     }
   }
 
-  updateBattery(delta, moving);
+  updateBattery(delta, moving, solarDead);
   updateEngineSound(clamp(Math.abs(speedMult),0,1), moving && speedMult>0.05);
   updateWindSound();
 
@@ -2109,7 +2125,7 @@ function updateHUD(moveInfo){
 
   const banner = document.getElementById('warning-banner');
   if(moveInfo.solarDead){
-    banner.style.display='block'; banner.textContent='⚠ LOW POWER — AWAITING SUNLIGHT';
+    banner.style.display='block'; banner.textContent='⚠ LOW POWER — CHARGING TO 20%';
   } else if(planet.hasDustStorm && storm.active){
     banner.style.display='block'; banner.textContent='⚠ DUST STORM — VISIBILITY REDUCED';
   } else if(hullIntegrity<20){
