@@ -42,9 +42,10 @@
   /* ---------- menu screens ---------- */
   .screen{
     position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:28px;background:radial-gradient(ellipse at 50% 20%, #101823 0%, #05070a 70%);
+    justify-content:center;gap:28px;background:radial-gradient(ellipse at 50% 20%, rgba(16,24,35,0.8) 0%, rgba(5,7,10,0.9) 70%);
     padding:40px 20px;
   }
+  #menu-canvas{position:fixed;inset:0;z-index:-1;display:block;}
   .eyebrow{font-family:'Space Mono',monospace;letter-spacing:.35em;font-size:11px;color:var(--amber);
     text-transform:uppercase;opacity:.85;}
   .title-xl{font-size:clamp(28px,5vw,52px);font-weight:700;letter-spacing:.02em;margin:0;
@@ -72,6 +73,17 @@
   .stat-line span:last-child{color:var(--text);}
 
   .rover-card{width:300px;text-align:left;}
+  .rover-card.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan);}
+  .rover-card .best-tag{position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:10px;
+    color:var(--amber);background:rgba(35,26,12,0.8);border:1px solid #4a3a1e;border-radius:3px;padding:2px 6px;}
+  .best-banner{font-family:'Space Mono',monospace;font-size:12px;color:var(--amber);background:rgba(35,26,12,0.5);
+    border:1px solid #4a3a1e;border-radius:4px;padding:6px 16px;}
+  .preview-stage{position:relative;width:100%;max-width:420px;height:190px;border:1px solid var(--line);
+    border-radius:6px;background:radial-gradient(ellipse at 50% 40%, #0e1620 0%, #05070a 100%);overflow:hidden;}
+  .builder-preview .preview-stage{max-width:100%;height:160px;margin-bottom:14px;}
+  .preview-stage canvas{width:100%;height:100%;display:block;}
+  .preview-stage-label{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:'Space Mono',monospace;
+    font-size:10px;color:var(--dim);letter-spacing:.08em;pointer-events:none;}
   .build-own-card{border-style:dashed;border-color:#4a3a1e;}
   .build-own-card:hover{border-color:var(--amber);}
   .rover-card .badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.08em;
@@ -299,6 +311,7 @@
 </head>
 <body class="vignette">
 
+<canvas id="menu-canvas"></canvas>
 <div id="canvas-container" class="scanlines"></div>
 <div id="touch-look-layer"></div>
 <div id="storm-overlay"></div>
@@ -320,11 +333,27 @@
   </div>
 </div>
 
+<!-- ================= INTRO ================= -->
+<div id="screen-intro" class="screen">
+  <div class="eyebrow">Surveyor Program // Briefing</div>
+  <h1 class="title-xl">SURVEYOR</h1>
+  <p class="subtitle" style="max-width:600px;">
+    หุ่นยนต์สำรวจดาว (Planetary Rover) คือยานหรืออุปกรณ์เคลื่อนที่ภาคพื้นดินที่ถูกออกแบบมาเพื่อขับเคลื่อนบนพื้นผิวของดาวเคราะห์หรือดวงจันทร์
+    มีเป้าหมายหลักในการสำรวจสภาพแวดล้อม เก็บตัวอย่างดินและหิน ถ่ายภาพ และวิเคราะห์ธรณีวิทยา เพื่อค้นหาร่องรอยสิ่งมีชีวิต
+    โดยมักควบคุมแบบอัตโนมัติหรือกึ่งอัตโนมัติจากนักวิทยาศาสตร์บนโลก
+  </p>
+  <p class="subtitle" style="max-width:600px;color:var(--cyan);">
+    เกมนี้จะพาคุณสัมผัสประสบการณ์สำรวจดาวผ่านมุมมองของหุ่นยนต์เอง — ออกแบบ ปล่อยลงพื้นผิว แล้วควบคุมมันด้วยตัวคุณเอง
+  </p>
+  <button class="btn" id="btn-start-intro" style="margin-top:8px;padding:14px 38px;font-size:16px;">เริ่มภารกิจ →</button>
+</div>
+
 <!-- ================= PLANET SELECT ================= -->
-<div id="screen-planet" class="screen">
+<div id="screen-planet" class="screen" style="display:none;">
   <div class="eyebrow">Surveyor Program // Mission Briefing</div>
   <h1 class="title-xl">เลือกดาวสำหรับภารกิจสำรวจ</h1>
   <p class="subtitle">เลือกโลกที่จะส่งหุ่นยนต์ลงสำรวจ แต่ละดาวมีแรงโน้มถ่วง ภูมิประเทศ และอันตรายที่แตกต่างกัน มองผ่านกล้อง Navcam ของหุ่นยนต์เอง</p>
+  <div class="best-banner" id="best-banner" style="display:none;">🏆 คะแนนดีที่สุดของคุณ: <b id="best-banner-score">0</b> คะแนน</div>
   <div class="card-row">
     <div class="card" tabindex="0" data-planet="mars">
       <div class="planet-orb orb-mars"></div>
@@ -353,6 +382,10 @@
   <div class="eyebrow" id="rover-eyebrow">Deployment Roster</div>
   <h1 class="title-xl" id="rover-title">เลือกหุ่นยนต์สำรวจ</h1>
   <p class="subtitle">แต่ละคันสร้างจากหุ่นยนต์สำรวจดาวที่มีอยู่จริง มีระบบพลังงาน ความเร็ว และเครื่องมือวิทยาศาสตร์ต่างกัน</p>
+  <div class="preview-stage" id="rover-preview-stage">
+    <canvas id="preview-canvas"></canvas>
+    <div class="preview-stage-label" id="preview-stage-label">แตะการ์ดเพื่อดูตัวจริง</div>
+  </div>
   <div class="card-row" id="rover-list"></div>
 </div>
 
@@ -453,6 +486,7 @@
 
     <div class="builder-preview">
       <h4 class="preview-label">MISSION READOUT</h4>
+      <div class="preview-stage" id="builder-preview-stage"></div>
       <div class="preview-name" id="builder-preview-name">Custom Rover</div>
       <div class="bar-row"><span style="width:60px;">SPEED</span><div class="bar-track"><div class="bar-fill" id="builder-bar-speed" style="width:50%"></div></div></div>
       <div class="bar-row"><span style="width:60px;">POWER</span><div class="bar-track"><div class="bar-fill" id="builder-bar-power" style="width:50%;background:#ffb454;"></div></div></div>
@@ -1040,6 +1074,9 @@ function makeRayTexture(){
   return new THREE.CanvasTexture(cvs);
 }
 
+let menuRenderer, menuScene, menuCamera, menuStarPoints, menuClock;
+let previewRenderer, previewScene, previewCamera, previewModel;
+
 function initThree(){
   const container = document.getElementById('canvas-container');
   scene = new THREE.Scene();
@@ -1090,13 +1127,129 @@ function initThree(){
   window.addEventListener('mousemove', onMouseMove);
 
   initTouchControls();
+  initMenuBackground();
+  initRoverPreview();
+  menuClock = new THREE.Clock();
+  animateMenuLoop();
 
   animate();
 }
+
+function initMenuBackground(){
+  const cvs = document.getElementById('menu-canvas');
+  menuRenderer = new THREE.WebGLRenderer({ canvas:cvs, antialias:true, alpha:true });
+  menuRenderer.setSize(window.innerWidth, window.innerHeight);
+  menuRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  menuScene = new THREE.Scene();
+  menuCamera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 500);
+  menuCamera.position.set(0,0,5);
+
+  const count = 900;
+  const g = new THREE.BufferGeometry();
+  const positions = new Float32Array(count*3);
+  const colors = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const r = rand(60,220);
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(rand(-1,1));
+    positions[i*3]   = r*Math.sin(phi)*Math.cos(theta);
+    positions[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+    positions[i*3+2] = -Math.abs(r*Math.cos(phi))-20;
+    const b = rand(0.4,1.0);
+    colors[i*3]=b*0.9; colors[i*3+1]=b*0.92; colors[i*3+2]=b;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  g.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  if(!starTexture) starTexture = makeStarTexture();
+  const mat = new THREE.PointsMaterial({
+    size:1.6, sizeAttenuation:true, map:starTexture, vertexColors:true,
+    transparent:true, opacity:0.85, depthWrite:false, blending:THREE.AdditiveBlending
+  });
+  menuStarPoints = new THREE.Points(g, mat);
+  menuScene.add(menuStarPoints);
+}
+
+function initRoverPreview(){
+  const cvs = document.getElementById('preview-canvas');
+  previewRenderer = new THREE.WebGLRenderer({ canvas:cvs, antialias:true, alpha:true });
+  previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  previewRenderer.outputEncoding = THREE.sRGBEncoding;
+  previewScene = new THREE.Scene();
+  previewCamera = new THREE.PerspectiveCamera(40, 16/9, 0.1, 100);
+
+  previewScene.add(new THREE.AmbientLight(0xffffff,0.55));
+  const key = new THREE.DirectionalLight(0xfff2df,1.15);
+  key.position.set(4,6,3);
+  previewScene.add(key);
+  const rim = new THREE.DirectionalLight(0x6fe7dd,0.45);
+  rim.position.set(-4,2,-4);
+  previewScene.add(rim);
+
+  resizePreviewCanvas();
+}
+
+function resizePreviewCanvas(){
+  if(!previewRenderer) return;
+  const cvs = document.getElementById('preview-canvas');
+  const w = cvs.clientWidth||400, h = cvs.clientHeight||190;
+  previewRenderer.setSize(w,h,false);
+  previewCamera.aspect = w/h;
+  previewCamera.updateProjectionMatrix();
+}
+
+function movePreviewCanvasTo(containerId){
+  const cvs = document.getElementById('preview-canvas');
+  const container = document.getElementById(containerId);
+  if(cvs && container && cvs.parentElement !== container){
+    container.appendChild(cvs);
+    resizePreviewCanvas();
+  }
+}
+
+function updateRoverPreview(cfg){
+  if(!previewScene) return;
+  if(previewModel){
+    previewScene.remove(previewModel);
+    disposeObject3D(previewModel);
+    previewModel = null;
+  }
+  if(!cfg) return;
+  previewModel = buildRover(cfg);
+  previewScene.add(previewModel);
+  const box = new THREE.Box3().setFromObject(previewModel);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  previewModel.position.x -= center.x;
+  previewModel.position.z -= center.z;
+  previewModel.position.y -= box.min.y;
+  const maxDim = Math.max(size.x, size.y, size.z, 0.5);
+  const dist = maxDim*1.7;
+  previewCamera.position.set(dist*0.72, dist*0.5+size.y*0.15, dist*0.78);
+  previewCamera.lookAt(0, size.y*0.42, 0);
+  const label = document.getElementById('preview-stage-label');
+  if(label) label.style.display = 'none';
+}
+
+function animateMenuLoop(){
+  requestAnimationFrame(animateMenuLoop);
+  if(gameState==='playing') return;
+  const delta = Math.min(menuClock.getDelta(), 0.1);
+  if(menuStarPoints) menuStarPoints.rotation.y += delta*0.006;
+  if(menuRenderer) menuRenderer.render(menuScene, menuCamera);
+  if(previewModel) previewModel.rotation.y += delta*0.5;
+  if(previewRenderer && previewScene) previewRenderer.render(previewScene, previewCamera);
+}
+
 function onResize(){
   camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if(menuRenderer){
+    menuRenderer.setSize(window.innerWidth, window.innerHeight);
+    menuCamera.aspect = window.innerWidth/window.innerHeight;
+    menuCamera.updateProjectionMatrix();
+  }
+  resizePreviewCanvas();
 }
 function onMouseMove(e){
   if(!mouseDown || viewMode!=='nav') return;
@@ -2830,18 +2983,35 @@ function animate(){
 /* ============================================================
    UI WIRING
    ============================================================ */
+function getBestForRover(planetKey, roverId){
+  let best = null;
+  for(const key in sessionBests){
+    if(key.startsWith(`${planetKey}:${roverId}:`)){
+      if(best===null || sessionBests[key]>best) best = sessionBests[key];
+    }
+  }
+  return best;
+}
+function attachHoverSound(el){
+  el.addEventListener('mouseenter', ()=>{ if(audioCtx && audioEnabled) playTone({freq:900, duration:0.04, type:'sine', volume:0.035}); });
+}
+
 function renderRoverList(planetKey){
   const list = document.getElementById('rover-list');
   list.innerHTML = '';
   const p = PLANETS[planetKey];
   document.getElementById('rover-eyebrow').textContent = `Deployment Roster // ${p.label}`;
   document.getElementById('rover-title').textContent = `เลือกหุ่นยนต์สำรวจ${p.name}`;
-  ROVERS.filter(r=>r.planet===planetKey).forEach(cfg=>{
+  const roversHere = ROVERS.filter(r=>r.planet===planetKey);
+  roversHere.forEach((cfg,idx)=>{
     const card = document.createElement('div');
     card.className = 'card rover-card';
+    card.style.position = 'relative';
     card.tabIndex = 0;
     const powerLabel = { rtg:'☢ RTG NUCLEAR', solar:'☀ SOLAR', battery:'🔋 BATTERY' }[cfg.power];
+    const best = getBestForRover(planetKey, cfg.id);
     card.innerHTML = `
+      ${best!==null ? `<span class="best-tag">🏆 ${Math.round(best)}</span>` : ''}
       <span class="badge">${powerLabel}</span>
       <h3>${cfg.name}</h3>
       <div class="full">${cfg.full}</div>
@@ -2849,9 +3019,20 @@ function renderRoverList(planetKey){
       <div class="bar-row"><span style="width:60px;">SPEED</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.speed*100}%"></div></div></div>
       <div class="bar-row"><span style="width:60px;">POWER</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.battery*100}%;background:#ffb454;"></div></div></div>
       <div class="bar-row"><span style="width:60px;">RANGE</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.range*100}%;background:#c1622f;"></div></div></div>
-      <div style="margin-top:14px;text-align:right;"><button class="btn">ปล่อยลงสำรวจ →</button></div>
+      <div style="margin-top:14px;text-align:right;"><button class="btn deploy-btn">ปล่อยลงสำรวจ →</button></div>
     `;
-    card.addEventListener('click', ()=>{
+    function selectCard(){
+      document.querySelectorAll('#rover-list .rover-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      updateRoverPreview(cfg);
+      document.getElementById('preview-stage-label').textContent = cfg.name;
+    }
+    card.addEventListener('mouseenter', selectCard);
+    card.addEventListener('click', selectCard);
+    attachHoverSound(card);
+    card.querySelector('.deploy-btn').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      playClickSound();
       selectedPlanetKey = planetKey;
       selectedRoverId = cfg.id;
       document.getElementById('screen-rover').style.display='none';
@@ -2859,6 +3040,7 @@ function renderRoverList(planetKey){
       gameState = 'menu-difficulty';
     });
     list.appendChild(card);
+    if(idx===0) selectCard();
   });
 
   const buildCard = document.createElement('div');
@@ -2871,6 +3053,7 @@ function renderRoverList(planetKey){
     <p class="desc">เลือกรูปร่าง ของตกแต่ง พลังงาน และความเร็วเอง ประกอบหุ่นยนต์ในแบบของคุณ</p>
     <div style="margin-top:14px;text-align:right;"><button class="btn ghost" style="border-color:var(--amber);color:var(--amber);">เริ่มออกแบบ →</button></div>
   `;
+  attachHoverSound(buildCard);
   buildCard.addEventListener('click', ()=>{
     selectedPlanetKey = planetKey;
     document.getElementById('screen-rover').style.display='none';
@@ -2886,6 +3069,7 @@ function openBuilder(){
   renderBuilderSwatches();
   syncBuilderSelection();
   updateBuilderPreview();
+  movePreviewCanvasTo('builder-preview-stage');
   gameState = 'menu-builder';
 }
 
@@ -2951,6 +3135,7 @@ function updateBuilderPreview(){
   if(builderState.hasGoldSkirt) decoList.push('แผ่นฉนวนทอง');
   document.getElementById('builder-preview-desc').textContent =
     `เครื่องมือ: ${cfg.toolName} · ของตกแต่ง: ${decoList.length?decoList.join(', '):'ไม่มี'}`;
+  updateRoverPreview(cfg);
 }
 
 document.getElementById('builder-name').addEventListener('input', (e)=>{ builderState.name = e.target.value; updateBuilderPreview(); });
@@ -2981,12 +3166,32 @@ document.getElementById('builder-deploy-btn').addEventListener('click', ()=>{
   gameState = 'menu-difficulty';
 });
 
+document.getElementById('btn-start-intro').addEventListener('click', ()=>{
+  initAudio(); resumeAudio(); playClickSound(); startThemeMusic();
+  document.getElementById('screen-intro').style.display='none';
+  document.getElementById('screen-planet').style.display='flex';
+  updateBestBanner();
+  gameState = 'menu-planet';
+});
+attachHoverSound(document.getElementById('btn-start-intro'));
+
+function updateBestBanner(){
+  const vals = Object.values(sessionBests);
+  const banner = document.getElementById('best-banner');
+  if(!vals.length){ banner.style.display='none'; return; }
+  const best = Math.max(...vals);
+  document.getElementById('best-banner-score').textContent = Math.round(best);
+  banner.style.display = 'inline-block';
+}
+
 document.querySelectorAll('#screen-planet .card').forEach(card=>{
+  attachHoverSound(card);
   card.addEventListener('click', ()=>{
     initAudio(); resumeAudio(); playClickSound(); startThemeMusic();
     const key = card.dataset.planet;
     document.getElementById('screen-planet').style.display='none';
     document.getElementById('screen-rover').style.display='flex';
+    movePreviewCanvasTo('rover-preview-stage');
     renderRoverList(key);
     gameState = 'menu-rover';
   });
@@ -2995,21 +3200,25 @@ document.getElementById('back-to-planet').addEventListener('click', ()=>{
   playClickSound();
   document.getElementById('screen-rover').style.display='none';
   document.getElementById('screen-planet').style.display='flex';
+  updateBestBanner();
   gameState = 'menu-planet';
 });
 document.getElementById('back-to-rover').addEventListener('click', ()=>{
   playClickSound();
   document.getElementById('screen-difficulty').style.display='none';
   document.getElementById('screen-rover').style.display='flex';
+  movePreviewCanvasTo('rover-preview-stage');
   gameState = 'menu-rover';
 });
 document.querySelectorAll('#screen-difficulty .diff-card').forEach(card=>{
+  attachHoverSound(card);
   card.addEventListener('click', ()=>{
     playClickSound();
     document.getElementById('screen-difficulty').style.display='none';
     startMission(selectedPlanetKey, selectedRoverId, card.dataset.diff);
   });
 });
+document.querySelectorAll('.builder-opt').forEach(attachHoverSound);
 document.getElementById('btn-restart-same').addEventListener('click', ()=>{
   playClickSound();
   document.getElementById('debrief').style.display='none';
@@ -3044,6 +3253,7 @@ function quitToMainMenu(){
   paused = false;
   gameState = 'menu-planet';
   document.getElementById('screen-planet').style.display='flex';
+  updateBestBanner();
 }
 
 initThree();
