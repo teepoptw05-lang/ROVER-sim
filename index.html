@@ -72,7 +72,7 @@
     font-family:'Space Mono',monospace;padding:4px 0;border-top:1px solid var(--line);}
   .stat-line span:last-child{color:var(--text);}
 
-  .rover-card{width:300px;text-align:left;}
+  .rover-card{width:300px;text-align:left;padding-top:46px;}
   .rover-card.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan);}
   .rover-card .best-tag{position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:10px;
     color:var(--amber);background:rgba(35,26,12,0.8);border:1px solid #4a3a1e;border-radius:3px;padding:2px 6px;}
@@ -196,6 +196,38 @@
     justify-content:center;}
   #pause-menu .box{background:var(--panel-solid);border:1px solid var(--amber);border-radius:8px;
     padding:32px 36px;max-width:340px;width:88%;}
+
+  #rover-info-modal{position:fixed;inset:0;z-index:26;background:rgba(3,5,8,0.88);display:none;align-items:center;
+    justify-content:center;font-family:'Space Mono',monospace;padding:20px;}
+  #rover-info-modal .box{background:var(--panel-solid);border:1px solid var(--cyan);border-radius:6px;
+    padding:26px 30px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;}
+  #rover-info-modal .row{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);padding:7px 0;
+    border-bottom:1px solid var(--line);gap:12px;}
+  #rover-info-modal .row b{color:var(--text);text-align:right;}
+  .info-status{display:inline-block;margin:10px 0;padding:4px 10px;border-radius:4px;font-size:11px;
+    background:#132318;border:1px solid #1e4a2a;color:var(--good);}
+  .info-status.retired{background:#241a12;border-color:#4a3320;color:var(--amber);}
+  .info-photo-box{margin:4px 0 14px;border-radius:6px;overflow:hidden;border:1px solid var(--line);
+    background:#05070a;}
+  .info-photo-box img{width:100%;height:180px;object-fit:cover;display:block;background:#0a0d12;}
+  .info-photo-credit{font-size:10px;color:var(--dim);padding:5px 9px;background:rgba(0,0,0,0.3);
+    font-family:'Space Mono',monospace;}
+  .info-subhead{margin:16px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--amber);
+    font-family:'Space Mono',monospace;font-weight:400;text-transform:uppercase;}
+  .info-achievements{margin:0;padding-left:18px;}
+  .info-achievements li{font-size:12.5px;color:var(--text);line-height:1.5;margin-bottom:6px;
+    font-family:'Rajdhani',sans-serif;}
+  .info-funfact{margin-top:14px;padding:10px 12px;background:#0d1721;border:1px solid var(--line);
+    border-radius:4px;font-size:12px;color:var(--dim);line-height:1.5;}
+  .info-funfact b{color:var(--cyan);font-family:'Rajdhani',sans-serif;}
+  .info-btn{position:absolute;top:12px;left:12px;width:26px;height:26px;border-radius:50%;
+    background:rgba(18,26,38,0.85);border:1px solid var(--cyan);color:var(--cyan);font-size:13px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
+  .info-btn:hover{background:rgba(111,231,221,0.2);}
+  .card-status-tag{position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:9px;
+    padding:2px 6px;border-radius:3px;background:#132318;border:1px solid #1e4a2a;color:var(--good);}
+  .card-status-tag.retired{background:#241a12;border-color:#4a3320;color:var(--amber);}
+  .rover-card .best-tag{top:44px;}
 
   .icon-btn{pointer-events:auto;cursor:pointer;background:var(--panel-solid);border:1px solid var(--line);
     color:var(--cyan);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.05em;
@@ -583,6 +615,31 @@
   </div>
 </div>
 
+<!-- ================= ROVER REAL-WORLD INFO ================= -->
+<div id="rover-info-modal">
+  <div class="box">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div>
+        <div class="eyebrow" id="info-agency" style="font-size:10px;">—</div>
+        <h3 style="margin:2px 0 0;font-size:22px;" id="info-name">—</h3>
+      </div>
+      <button id="info-close" class="btn ghost" style="padding:6px 14px;flex-shrink:0;">✕ ปิด</button>
+    </div>
+    <div class="info-status" id="info-status">—</div>
+    <div class="info-photo-box" id="info-photo-box">
+      <img id="info-photo" src="" alt="" onerror="this.parentElement.style.display='none';">
+      <div class="info-photo-credit" id="info-photo-credit">—</div>
+    </div>
+    <div class="row"><span>ปล่อยยาน</span><b id="info-launch">—</b></div>
+    <div class="row"><span>ลงจอด / เริ่มปฏิบัติการ</span><b id="info-landing">—</b></div>
+    <div id="info-stats-rows"></div>
+    <h4 class="info-subhead">ผลงานเด่น</h4>
+    <ul class="info-achievements" id="info-achievements"></ul>
+    <div class="info-funfact"><b>🔎 รู้หรือไม่:</b> <span id="info-funfact">—</span></div>
+    <p style="color:var(--dim);font-size:11px;margin-top:14px;">ข้อมูลอ้างอิงจากภารกิจจริง (ตรวจสอบ ก.ค. 2026) ส่วนคะแนน/ระบบความเสียหาย/สิ่งผิดปกติในเกมเป็นกลไกสมมติเพื่อความสนุก ไม่ใช่ข้อมูลทางวิศวกรรมจริง</p>
+  </div>
+</div>
+
 <!-- ================= PAUSE MENU ================= -->
 <div id="pause-menu">
   <div class="box" style="text-align:center;">
@@ -675,6 +732,81 @@ const ROVERS = [
     desc:'รถสำรวจของนักบินอวกาศ ไม่มีเครื่องมือวิทยาศาสตร์ในตัว แต่เร็วที่สุดและบังคับบนพื้นผิวขรุขระได้ดีเยี่ยม',
     stats:{speed:1.0,battery:0.5,range:0.30}},
 ];
+
+// Real-world mission facts (verified July 2026). Shown in-game as an educational panel
+// so players learn about the actual missions their chosen rover is modeled after.
+const ROVER_REAL_INFO = {
+  curiosity: {
+    photo: 'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA19808.jpg',
+    photoCredit: 'NASA/JPL-Caltech/MSSS',
+    agency: 'NASA · Mars Science Laboratory',
+    launch: '26 พ.ย. 2011', landing: '6 ส.ค. 2012 · หลุมอุกกาบาต Gale',
+    status: 'active', statusLabel: 'ยังปฏิบัติภารกิจอยู่ (2026)',
+    stats: [ ['ระยะทางขับสะสม','กว่า 33 กม. (กลางปี 2026)'], ['พลังงาน','RTG นิวเคลียร์ (คาดใช้ได้ถึงปลายทศวรรษ 2020s)'], ['ภารกิจเดิม','ออกแบบไว้เพียง 2 ปี แต่ยังทำงานต่อเนื่องมากว่า 13 ปี'] ],
+    achievements: [
+      'ยืนยันว่าหลุม Gale เคยเป็นทะเลสาบโบราณที่เอื้อต่อสิ่งมีชีวิต',
+      'ค้นพบโมเลกุลอินทรีย์ในหินโบราณบนดาวอังคาร',
+      'ลงจอดด้วยเทคนิค "Sky Crane" ที่ซับซ้อนที่สุดในตอนนั้น'
+    ],
+    funFact: 'สัญญาณจากโลกไปถึง Curiosity ใช้เวลาราว 14 นาที ทุกคำสั่งขับจึงต้องวางแผนล่วงหน้า ไม่ใช่บังคับแบบเรียลไทม์'
+  },
+  perseverance: {
+    photo: 'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA24542.jpg',
+    photoCredit: 'NASA/JPL-Caltech/MSSS',
+    agency: 'NASA · Mars 2020',
+    launch: '30 ก.ค. 2020', landing: '18 ก.พ. 2021 · หลุมอุกกาบาต Jezero',
+    status: 'active', statusLabel: 'ยังปฏิบัติภารกิจอยู่ (2026)',
+    stats: [ ['น้ำหนัก','~1,025 กก.'], ['พลังงาน','RTG นิวเคลียร์'], ['ภารกิจเดิม','ค้นหาร่องรอยสิ่งมีชีวิตจุลินทรีย์โบราณ'] ],
+    achievements: [
+      'เก็บตัวอย่างหินใส่หลอดปิดผนึกไว้ให้ภารกิจในอนาคตนำกลับโลก',
+      'พา Ingenuity เฮลิคอปเตอร์ลำแรกที่บินบนดาวเคราะห์อื่นได้สำเร็จ (เม.ย. 2021)',
+      'ลงจอดในเดลต้าแม่น้ำโบราณที่ Jezero ซึ่งเคยเป็นทะเลสาบ'
+    ],
+    funFact: 'ล้อของ Perseverance ออกแบบใหม่ให้แข็งแรงกว่า Curiosity หลังพบว่าล้อรุ่นก่อนเป็นรอยฉีกขาดจากหินคมบนดาวอังคาร'
+  },
+  sojourner: {
+    photo: 'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA01559.jpg',
+    photoCredit: 'NASA/JPL',
+    agency: 'NASA · Mars Pathfinder',
+    launch: '4 ธ.ค. 1996', landing: '4 ก.ค. 1997 · Ares Vallis',
+    status: 'retired', statusLabel: 'ภารกิจสิ้นสุดแล้ว (ขาดการติดต่อ ก.ย. 1997)',
+    stats: [ ['น้ำหนัก','~11.5 กก. (เท่ากระเป๋าเดินทาง)'], ['พลังงาน','โซลาร์เซลล์'], ['ภารกิจเดิม','ทดสอบเทคโนโลยีหุ่นยนต์สำรวจบนดาวอังคาร'] ],
+    achievements: [
+      'หุ่นยนต์สำรวจดาวอังคารคันแรกในประวัติศาสตร์ที่สำเร็จ',
+      'ออกแบบให้ทำงานเพียงไม่กี่สัปดาห์ แต่ปฏิบัติงานจริงได้นานถึง 83 วันดาวอังคาร (sols)',
+      'พิสูจน์ว่าหุ่นยนต์ขนาดเล็กสำรวจดาวอังคารได้จริง ปูทางสู่ภารกิจรุ่นหลัง'
+    ],
+    funFact: 'Sojourner มีขนาดเท่าไมโครเวฟเตาอบ และวิ่งด้วยความเร็วสูงสุดไม่ถึง 1 ซม./วินาที'
+  },
+  yutu2: {
+    photo: 'https://planetary.s3.amazonaws.com/web/assets/pictures/20190111_y2-from-ce4.jpg',
+    photoCredit: 'CNSA / CLEP',
+    agency: 'CNSA (จีน) · Chang\'e 4',
+    launch: '7 ธ.ค. 2018', landing: '3 ม.ค. 2019 · หลุม Von Kármán (ด้านไกลของดวงจันทร์)',
+    status: 'active', statusLabel: 'ยังปฏิบัติภารกิจอยู่ (2026)',
+    stats: [ ['สถิติ','หุ่นยนต์สำรวจดวงจันทร์ที่ทำงานนานที่สุดในประวัติศาสตร์'], ['พลังงาน','โซลาร์เซลล์ (ต้องพักจำศีลช่วงกลางคืน ~14 วันโลก)'], ['ภารกิจเดิม','ออกแบบไว้เพียง 3 เดือน'] ],
+    achievements: [
+      'ยานลำแรกในประวัติศาสตร์ที่ลงจอดบนด้านไกลของดวงจันทร์ได้สำเร็จ',
+      'ใช้เรดาร์ตรวจใต้พื้นผิว พบวัสดุที่คาดว่ามาจากชั้นแมนเทิลของดวงจันทร์',
+      'ต้องสื่อสารผ่านดาวเทียมถ่ายทอดสัญญาณ Queqiao เพราะด้านไกลของดวงจันทร์ติดต่อโลกตรงไม่ได้'
+    ],
+    funFact: 'ชื่อ Yutu แปลว่า "กระต่ายหยก" ตามตำนานจีนเรื่องกระต่ายบนดวงจันทร์ที่อยู่เคียงข้างเทพธิดา Chang\'e'
+  },
+  lrv: {
+    photo: 'https://images-assets.nasa.gov/image/as17-134-20476/as17-134-20476~large.jpg',
+    photoCredit: 'NASA (Apollo 17, Eugene Cernan approaching the LRV)',
+    agency: 'NASA · Apollo 15, 16, 17',
+    launch: 'ใช้งานปี 1971–1972', landing: 'ขับบนดวงจันทร์โดยนักบินอวกาศโดยตรง',
+    status: 'retired', statusLabel: 'ภารกิจสิ้นสุดแล้ว ยังคงจอดอยู่บนดวงจันทร์ทั้ง 3 คัน',
+    stats: [ ['ผลิต','3 คัน หนึ่งคันต่อภารกิจ ทิ้งไว้บนดวงจันทร์ทุกคัน'], ['พลังงาน','แบตเตอรี่ (ไม่มีการชาร์จ)'], ['ความเร็วสูงสุดที่ทำได้จริง','~18 กม./ชม.'] ],
+    achievements: [
+      'ขยายระยะสำรวจของนักบินอวกาศจากเดินเท้าไม่กี่ร้อยเมตร เป็นหลายกิโลเมตร',
+      'ออกแบบให้พับเก็บได้ ติดตั้งไว้ด้านนอกยานลงจอด Apollo',
+      'ไม่มีเครื่องมือวิทยาศาสตร์ในตัว นักบินอวกาศเป็นผู้ควบคุมและเก็บตัวอย่างเอง'
+    ],
+    funFact: 'สถิติความเร็วบนดวงจันทร์ทำโดย Eugene Cernan ในภารกิจ Apollo 17 ปี 1972 และยังไม่มีใครทำลายสถิตินี้'
+  }
+};
 
 const DIFFICULTIES = {
   easy: {
@@ -1260,6 +1392,10 @@ function onMouseMove(e){
 }
 function onKeyDown(e){
   keys[e.code]=true;
+  if(e.code==='Escape' && document.getElementById('rover-info-modal').style.display==='flex'){
+    closeRoverInfo();
+    return;
+  }
   if(gameState==='playing'){
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape'){
@@ -2996,6 +3132,32 @@ function attachHoverSound(el){
   el.addEventListener('mouseenter', ()=>{ if(audioCtx && audioEnabled) playTone({freq:900, duration:0.04, type:'sine', volume:0.035}); });
 }
 
+function openRoverInfo(cfg){
+  const info = ROVER_REAL_INFO[cfg.id];
+  if(!info) return;
+  document.getElementById('info-agency').textContent = info.agency;
+  document.getElementById('info-name').textContent = cfg.name;
+  const statusEl = document.getElementById('info-status');
+  statusEl.textContent = (info.status==='active' ? '🟢 ' : '⚪ ') + info.statusLabel;
+  statusEl.className = 'info-status' + (info.status==='retired' ? ' retired' : '');
+  const photoBox = document.getElementById('info-photo-box');
+  photoBox.style.display = 'block';
+  document.getElementById('info-photo').src = info.photo;
+  document.getElementById('info-photo').alt = cfg.name + ' — official mission photo';
+  document.getElementById('info-photo-credit').textContent = '📷 ' + info.photoCredit;
+  document.getElementById('info-launch').textContent = info.launch;
+  document.getElementById('info-landing').textContent = info.landing;
+  document.getElementById('info-stats-rows').innerHTML = info.stats.map(([k,v])=>
+    `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
+  document.getElementById('info-achievements').innerHTML = info.achievements.map(a=>`<li>${a}</li>`).join('');
+  document.getElementById('info-funfact').textContent = info.funFact;
+  document.getElementById('rover-info-modal').style.display = 'flex';
+}
+function closeRoverInfo(){
+  playClickSound();
+  document.getElementById('rover-info-modal').style.display = 'none';
+}
+
 function renderRoverList(planetKey){
   const list = document.getElementById('rover-list');
   list.innerHTML = '';
@@ -3010,7 +3172,10 @@ function renderRoverList(planetKey){
     card.tabIndex = 0;
     const powerLabel = { rtg:'☢ RTG NUCLEAR', solar:'☀ SOLAR', battery:'🔋 BATTERY' }[cfg.power];
     const best = getBestForRover(planetKey, cfg.id);
+    const info = ROVER_REAL_INFO[cfg.id];
     card.innerHTML = `
+      <button class="info-btn" title="ข้อมูลภารกิจจริง">ℹ</button>
+      ${info ? `<span class="card-status-tag ${info.status==='retired'?'retired':''}">${info.status==='active'?'🟢 ACTIVE':'⚪ RETIRED'}</span>` : ''}
       ${best!==null ? `<span class="best-tag">🏆 ${Math.round(best)}</span>` : ''}
       <span class="badge">${powerLabel}</span>
       <h3>${cfg.name}</h3>
@@ -3021,6 +3186,11 @@ function renderRoverList(planetKey){
       <div class="bar-row"><span style="width:60px;">RANGE</span><div class="bar-track"><div class="bar-fill" style="width:${cfg.stats.range*100}%;background:#c1622f;"></div></div></div>
       <div style="margin-top:14px;text-align:right;"><button class="btn deploy-btn">ปล่อยลงสำรวจ →</button></div>
     `;
+    if(info){
+      const infoBtn = card.querySelector('.info-btn');
+      attachHoverSound(infoBtn);
+      infoBtn.addEventListener('click', (e)=>{ e.stopPropagation(); playClickSound(); openRoverInfo(cfg); });
+    }
     function selectCard(){
       document.querySelectorAll('#rover-list .rover-card').forEach(c=>c.classList.remove('selected'));
       card.classList.add('selected');
@@ -3241,6 +3411,10 @@ document.getElementById('pause-quit').addEventListener('click', ()=>{ playClickS
 document.getElementById('help-close').addEventListener('click', ()=>{ playClickSound(); toggleHelp(); });
 document.getElementById('help').addEventListener('click', (e)=>{
   if(e.target.id==='help') toggleHelp();
+});
+document.getElementById('info-close').addEventListener('click', closeRoverInfo);
+document.getElementById('rover-info-modal').addEventListener('click', (e)=>{
+  if(e.target.id==='rover-info-modal') closeRoverInfo();
 });
 
 function quitToMainMenu(){
