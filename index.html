@@ -178,6 +178,24 @@
     opacity:0;transition:opacity .35s ease, transform .35s ease;pointer-events:none;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
 
+  #photo-toast{position:absolute;top:50%;right:16px;transform:translateY(-50%) translateX(120%);
+    width:min(74vw,230px);background:var(--panel-solid);border:1px solid var(--cyan);border-radius:8px;
+    padding:10px;font-family:'Space Mono',monospace;opacity:0;transition:transform .4s ease, opacity .4s ease;
+    pointer-events:none;z-index:15;}
+  #photo-toast.show{transform:translateY(-50%) translateX(0);opacity:1;pointer-events:auto;}
+  #photo-toast.pano{border-color:var(--amber);}
+  #photo-toast-close{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;
+    background:rgba(0,0,0,0.4);border:1px solid var(--line);color:var(--dim);font-size:11px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;z-index:2;}
+  #photo-toast-close:hover{color:var(--text);}
+  .pt-label{font-size:10px;letter-spacing:.08em;color:var(--cyan);margin-bottom:6px;padding-right:20px;}
+  #photo-toast.pano .pt-label{color:var(--amber);}
+  .pt-imgbox{border-radius:5px;overflow:hidden;border:1px solid var(--line);background:#05070a;margin-bottom:7px;}
+  .pt-imgbox img{width:100%;height:110px;object-fit:cover;display:block;}
+  .pt-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;}
+  .pt-fact{font-size:10.5px;color:var(--dim);line-height:1.45;font-family:'Rajdhani',sans-serif;margin-bottom:6px;}
+  .pt-credit{font-size:9px;color:#5a6470;}
+
   .view-tag{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:var(--dim);
     font-size:10px;letter-spacing:.2em;text-align:center;}
   .view-tag b{color:var(--text);}
@@ -593,6 +611,15 @@
   <div class="crosshair" id="crosshair"></div>
   <div class="toast" id="toast"></div>
   <div class="view-tag">CAM MODE: <b id="view-mode-label">CHASE</b> · <span class="hint-key">V</span> to switch · <span class="hint-key">H</span> for controls</div>
+
+  <div id="photo-toast">
+    <button id="photo-toast-close">✕</button>
+    <div class="pt-label" id="photo-toast-label">🪨 SAMPLE ANALYZED</div>
+    <div class="pt-imgbox"><img id="photo-toast-img" src="" alt="" onerror="this.parentElement.style.display='none';"></div>
+    <div class="pt-name" id="photo-toast-name">—</div>
+    <div class="pt-fact" id="photo-toast-fact">—</div>
+    <div class="pt-credit" id="photo-toast-credit">—</div>
+  </div>
 </div>
 
 <!-- ================= HELP ================= -->
@@ -808,6 +835,47 @@ const ROVER_REAL_INFO = {
   }
 };
 
+// Real rock-sample and panorama photography from actual missions (verified July 2026),
+// shown in-game after collecting a sample or capturing a panorama so players connect the
+// game action to genuine photos and discoveries.
+const SAMPLE_PHOTOS = {
+  mars: [
+    { photo:'https://d2pn8kiwq2w21t.cloudfront.net/original_images/2-PIA26308-Curiosity_Views_the_Outside_of_a_Rock_at_Snow_Lake.png',
+      name:'หิน "Snow Lake"', credit:'NASA/JPL-Caltech/MSSS',
+      fact:'Curiosity บดขยี้หินคล้ายกันนี้โดยบังเอิญ แล้วพบว่าข้างในเป็นผลึกกำมะถันบริสุทธิ์ ซึ่งไม่ค่อยพบแบบนี้บนดาวอังคาร' },
+    { photo:'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA26576.jpg',
+      name:'รอยเจียร "Kenmore"', credit:'NASA/JPL-Caltech/MSSS',
+      fact:'Perseverance เจียรผิวหินออกก่อนเจาะเก็บตัวอย่างเสมอ เผยให้เห็นเกรนแร่เฟลด์สปาร์สีขาวเป็นจุดๆ ที่ซ่อนอยู่ใต้ผิวสนิมสีน้ำตาล' },
+    { photo:'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA00766.jpg',
+      name:'หิน "Yogi"', credit:'NASA/JPL',
+      fact:'Sojourner ใช้ APXS วิเคราะห์หิน Yogi ในปี 1997 พบว่ามีองค์ประกอบคล้ายหินบะซอลต์ทั่วไปบนโลก' }
+  ],
+  moon: [
+    { photo:'https://www.nasa.gov/wp-content/uploads/2025/11/s71-43477.jpg',
+      name:'Genesis Rock (ตัวอย่าง 15415)', credit:'NASA',
+      fact:'นักบินอวกาศ Apollo 15 พบหินก้อนนี้ในปี 1971 ภายหลังพิสูจน์ว่ามีอายุกว่า 4 พันล้านปี เป็นชิ้นส่วนเปลือกดวงจันทร์ยุคแรกเริ่ม' },
+    { photo:'https://images-assets.nasa.gov/image/as17-134-20425/as17-134-20425~large.jpg',
+      name:'ตัวอย่างจากคราดสำรวจ Apollo 17', credit:'NASA',
+      fact:'นักบินอวกาศใช้ "คราด" เก็บเศษหินขนาด 1.3-2.5 ซม. เป็นจำนวนมากในคราวเดียว เพราะก้มตัวเก็บทีละก้อนในชุดอวกาศทำได้ยาก' }
+  ]
+};
+const PANORAMA_PHOTOS = {
+  mars: [
+    { photo:'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA23898.jpg',
+      name:'Mount Sharp จากมุมมอง Curiosity', credit:'NASA/JPL-Caltech/MSSS',
+      fact:'Mount Sharp สูงกว่า 5 กิโลเมตรจากพื้นหลุม Gale ซึ่งสูงกว่าภูเขาทุกลูกใน 48 รัฐของสหรัฐฯ' },
+    { photo:'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA24921.jpg',
+      name:'เดลต้าโบราณที่หลุม Jezero', credit:'NASA/JPL-Caltech/ASU/MSSS',
+      fact:'ภาพพาโนรามานี้ประกอบจาก 1,118 ภาพ ความละเอียดกว่า 2.5 พันล้านพิกเซล ถือเป็นภาพพื้นผิวดาวอังคารที่ละเอียดที่สุดเท่าที่เคยถ่ายมา' }
+  ],
+  moon: [
+    { photo:'https://live.staticflickr.com/65535/48299943216_ac2006cdf8_b.jpg',
+      name:'หุบเขา Taurus-Littrow (Apollo 17)', credit:'NASA / NASA Johnson Space Center',
+      fact:'ภาพพาโนรามาถ่ายที่ "สถานี 5" ระหว่างเดินสำรวจครั้งที่สองของภารกิจ Apollo 17 ปี 1972 ท้องฟ้าถูกทำให้เป็นสีดำสนิทเพราะนักบินอวกาศไม่เห็นดาวเลยจากแสงสะท้อนจ้าของพื้นผิวดวงจันทร์' }
+  ]
+};
+let shownSamplePhotoIdx = new Set(), shownPanoramaPhotoIdx = new Set();
+
 const DIFFICULTIES = {
   easy: {
     key:'easy', label:'ภารกิจฝึกหัด', tag:'EASY',
@@ -885,6 +953,8 @@ let touchInput = { forward:0, turn:0, boost:false };
 let particleSystems = [];
 let sunGlowSprite = null;
 let milkyWayPoints = null, earthMesh = null;
+let curSkyDay, curSkyNight, curFogDay, curFogNight, curGroundDay, curGroundNight;
+let STORM_COLOR, MARS_BLUE_SCRATCH, MARS_SUN_TINT, EARTH_OFFSET, CAM_UP_AXIS, camBackVec, camDirVec;
 let dustMotes = null, contactShadow = null, sunRaySprite = null;
 let marsSunsetFactShown = false;
 let starTexture = null;
@@ -1156,6 +1226,38 @@ function toast(msg){
   toast._t = setTimeout(()=>el.classList.remove('show'), 2600);
 }
 
+let photoToastTimeout = null;
+function renderPhotoToast(kind, item){
+  const el = document.getElementById('photo-toast');
+  el.classList.toggle('pano', kind==='pano');
+  document.getElementById('photo-toast-label').textContent = kind==='sample' ? '🪨 SAMPLE ANALYZED — REAL PHOTO' : '📷 PANORAMA CAPTURED — REAL PHOTO';
+  document.getElementById('photo-toast').querySelector('.pt-imgbox').style.display = 'block';
+  const img = document.getElementById('photo-toast-img');
+  img.src = item.photo; img.alt = item.name;
+  document.getElementById('photo-toast-name').textContent = item.name;
+  document.getElementById('photo-toast-fact').textContent = item.fact;
+  document.getElementById('photo-toast-credit').textContent = '📷 ' + item.credit;
+  el.classList.add('show');
+  clearTimeout(photoToastTimeout);
+  photoToastTimeout = setTimeout(()=>el.classList.remove('show'), kind==='sample' ? 5000 : 6500);
+}
+function pickFromPool(pool, shownSet){
+  if(!pool || !pool.length) return null;
+  let avail = pool.map((_,i)=>i).filter(i=>!shownSet.has(i));
+  if(avail.length===0){ shownSet.clear(); avail = pool.map((_,i)=>i); }
+  const idx = avail[Math.floor(Math.random()*avail.length)];
+  shownSet.add(idx);
+  return pool[idx];
+}
+function showRandomSamplePhoto(){
+  const item = pickFromPool(SAMPLE_PHOTOS[planet.key], shownSamplePhotoIdx);
+  if(item) renderPhotoToast('sample', item);
+}
+function showRandomPanoramaPhoto(){
+  const item = pickFromPool(PANORAMA_PHOTOS[planet.key], shownPanoramaPhotoIdx);
+  if(item) renderPhotoToast('pano', item);
+}
+
 function formatDelay(sec){
   if(sec<10) return sec.toFixed(2)+'s';
   const m = Math.floor(sec/60), s = Math.round(sec%60);
@@ -1250,6 +1352,17 @@ function initThree(){
   scene.add(sunRaySprite);
 
   clock = new THREE.Clock();
+  scene.background = new THREE.Color(0x000000);
+  curSkyDay = new THREE.Color(); curSkyNight = new THREE.Color();
+  curFogDay = new THREE.Color(); curFogNight = new THREE.Color();
+  curGroundDay = new THREE.Color(); curGroundNight = new THREE.Color();
+  STORM_COLOR = new THREE.Color(0x7a4a2a);
+  MARS_BLUE_SCRATCH = new THREE.Color(MARS_TWILIGHT_BLUE);
+  MARS_SUN_TINT = new THREE.Color(0x9fb8ff);
+  EARTH_OFFSET = new THREE.Vector3(-140,130,-170);
+  CAM_UP_AXIS = new THREE.Vector3(0,1,0);
+  camBackVec = new THREE.Vector3();
+  camDirVec = new THREE.Vector3();
 
   window.addEventListener('resize', onResize);
   window.addEventListener('keydown', onKeyDown);
@@ -2442,6 +2555,8 @@ function startMission(planetKey, roverId, difficultyKey){
   solarHibernating = false;
   hullIntegrity = 100;
   hasMovedThisMission = false;
+  shownSamplePhotoIdx.clear(); shownPanoramaPhotoIdx.clear();
+  document.getElementById('photo-toast').classList.remove('show');
   missionStartTime = clock ? clock.elapsedTime : 0;
   tutorialActive = !tutorialSeen;
   tutorialStep = 0;
@@ -2453,6 +2568,9 @@ function startMission(planetKey, roverId, difficultyKey){
   startWindSound();
 
   scene.fog = new THREE.Fog(planet.fogDay, 30, planet.hasAtmosphere ? 170 : 260);
+  curSkyDay.set(planet.skyDay); curSkyNight.set(planet.skyNight);
+  curFogDay.set(planet.fogDay); curFogNight.set(planet.fogNight);
+  curGroundDay.set(planet.groundDay); curGroundNight.set(planet.groundNight);
 
   document.getElementById('hud-rover-name').textContent = roverCfg.name;
   document.getElementById('hud-rover-full').textContent = roverCfg.full;
@@ -2508,6 +2626,7 @@ function useTool(){
   document.getElementById('obj-samples').querySelector('span:last-child').textContent = `${samplesCollected}/${missionSampleTarget}`;
   if(samplesCollected===missionSampleTarget) document.getElementById('obj-samples').classList.add('done');
   toast(`${cfg.toolName} · เก็บตัวอย่างสำเร็จ +${gained}`);
+  showRandomSamplePhoto();
   checkMissionComplete();
 }
 
@@ -2530,6 +2649,7 @@ function capturePhoto(){
   document.getElementById('obj-photos').querySelector('span:last-child').textContent = `${photosTaken}/${missionPhotoTarget}`;
   if(photosTaken===missionPhotoTarget) document.getElementById('obj-photos').classList.add('done');
   toast(`บันทึกภาพพาโนรามาแล้ว +${gained}`);
+  showRandomPanoramaPhoto();
   checkMissionComplete();
 }
 
@@ -2622,12 +2742,12 @@ function marsBlueAmount(t){
   // but tapers gradually, so the blue glow lasts several seconds rather than one instant.
   return clamp(1 - Math.abs(t-0.5)*2.0, 0, 1);
 }
-function skyGradient(nightC, dayC, t){
-  const base = nightC.clone().lerp(dayC, t);
+function skyGradientInto(target, nightC, dayC, t){
+  target.copy(nightC).lerp(dayC, t);
   if(planet.key === 'mars'){
-    return base.lerp(new THREE.Color(MARS_TWILIGHT_BLUE), marsBlueAmount(t)*0.8);
+    target.lerp(MARS_BLUE_SCRATCH, marsBlueAmount(t)*0.8);
   }
-  return base;
+  return target;
 }
 
 function updateSky(){
@@ -2641,20 +2761,14 @@ function updateSky(){
     toast('🌌 รู้หรือไม่: พระอาทิตย์ตกบนดาวอังคารเป็นสีฟ้า เพราะฝุ่นละเอียดกระเจิงแสงสีฟ้าไปข้างหน้า (ตรงข้ามกับโลก)');
   }
 
-  const skyDay = new THREE.Color(planet.skyDay), skyNight = new THREE.Color(planet.skyNight);
-  const fogDay = new THREE.Color(planet.fogDay), fogNight = new THREE.Color(planet.fogNight);
-  const groundDay = new THREE.Color(planet.groundDay), groundNight = new THREE.Color(planet.groundNight);
-  const stormColor = new THREE.Color(0x7a4a2a);
-
-  const skyColor = skyGradient(skyNight, skyDay, t).lerp(stormColor, stormFactor);
-  const fogColor = skyGradient(fogNight, fogDay, t).lerp(stormColor, stormFactor);
-  const groundColor = groundNight.clone().lerp(groundDay, t);
-
-  scene.background = skyColor;
-  scene.fog.color = fogColor;
+  // curSkyDay/curSkyNight/etc are cached once per mission (set in startMission), and
+  // scene.background/scene.fog.color/terrain color are persistent objects mutated in
+  // place here — this whole block runs every frame but allocates nothing.
+  skyGradientInto(scene.background, curSkyNight, curSkyDay, t).lerp(STORM_COLOR, stormFactor);
+  skyGradientInto(scene.fog.color, curFogNight, curFogDay, t).lerp(STORM_COLOR, stormFactor);
   scene.fog.near = 30;
   scene.fog.far = (planet.hasAtmosphere ? 170 : 260) * (storm.active?0.35:1);
-  terrainMesh.material.color = groundColor;
+  terrainMesh.material.color.copy(curGroundNight).lerp(curGroundDay, t);
 
   const sunDist = 250;
   sunLight.position.set(Math.cos(sunAngle)*sunDist, Math.max(Math.sin(sunAngle),0.02)*sunDist, 60);
@@ -2678,7 +2792,7 @@ function updateSky(){
     milkyWayPoints.position.copy(roverGroup.position);
   }
   if(earthMesh){
-    earthMesh.position.copy(roverGroup.position).add(new THREE.Vector3(-140,130,-170));
+    earthMesh.position.copy(roverGroup.position).add(EARTH_OFFSET);
   }
 
   if(sunGlowSprite){
@@ -2688,7 +2802,7 @@ function updateSky(){
     sunGlowSprite.scale.set(70*flare, 70*flare, 1);
     if(planet.key==='mars' && !storm.active){
       const twilightAmt = marsBlueAmount(t);
-      sunGlowSprite.material.color.set(0xffffff).lerp(new THREE.Color(0x9fb8ff), twilightAmt*0.65);
+      sunGlowSprite.material.color.set(0xffffff).lerp(MARS_SUN_TINT, twilightAmt*0.65);
     } else {
       sunGlowSprite.material.color.set(0xffffff);
     }
@@ -2885,8 +2999,8 @@ function updateRoverMovement(delta){
 function updateCamera(){
   const p = roverGroup.position;
   if(viewMode==='chase'){
-    const back = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), roverGroup.rotation.y);
-    const desired = new THREE.Vector3(p.x + back.x*9, p.y+5.5, p.z + back.z*9);
+    camBackVec.set(0,0,1).applyAxisAngle(CAM_UP_AXIS, roverGroup.rotation.y);
+    const desired = camDirVec.set(p.x + camBackVec.x*9, p.y+5.5, p.z + camBackVec.z*9);
     camera.position.lerp(desired, 0.06);
     const groundAtCam = getHeight(camera.position.x, camera.position.z);
     if(camera.position.y < groundAtCam+1.2) camera.position.y = groundAtCam+1.2;
@@ -2897,8 +3011,8 @@ function updateCamera(){
     const wz = p.z - anchor.x*Math.sin(roverGroup.rotation.y) - anchor.z*Math.cos(roverGroup.rotation.y);
     camera.position.set(wx, p.y+anchor.y, wz);
     const yaw = roverGroup.rotation.y + yawOffset;
-    const dir = new THREE.Vector3(-Math.sin(yaw), pitchOffset, -Math.cos(yaw));
-    camera.lookAt(camera.position.x+dir.x, camera.position.y+dir.y, camera.position.z+dir.z);
+    camDirVec.set(-Math.sin(yaw), pitchOffset, -Math.cos(yaw));
+    camera.lookAt(camera.position.x+camDirVec.x, camera.position.y+camDirVec.y, camera.position.z+camDirVec.z);
   }
 }
 
@@ -3415,6 +3529,10 @@ document.getElementById('help').addEventListener('click', (e)=>{
 document.getElementById('info-close').addEventListener('click', closeRoverInfo);
 document.getElementById('rover-info-modal').addEventListener('click', (e)=>{
   if(e.target.id==='rover-info-modal') closeRoverInfo();
+});
+document.getElementById('photo-toast-close').addEventListener('click', ()=>{
+  clearTimeout(photoToastTimeout);
+  document.getElementById('photo-toast').classList.remove('show');
 });
 
 function quitToMainMenu(){
