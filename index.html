@@ -195,6 +195,29 @@
   .pt-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;}
   .pt-fact{font-size:10.5px;color:var(--dim);line-height:1.45;font-family:'Rajdhani',sans-serif;margin-bottom:6px;}
   .pt-credit{font-size:9px;color:#5a6470;}
+  #photo-toast-imgbox{cursor:pointer;position:relative;}
+  .pt-expand-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,0.45);color:#fff;font-size:11px;opacity:0;transition:opacity .2s ease;
+    text-align:center;padding:8px;}
+  #photo-toast-imgbox:hover .pt-expand-hint, #photo-toast-imgbox:active .pt-expand-hint{opacity:1;}
+
+  #photo-lightbox{position:fixed;inset:0;z-index:28;background:rgba(3,5,8,0.92);display:none;
+    align-items:center;justify-content:center;padding:20px;font-family:'Space Mono',monospace;}
+  #photo-lightbox .box{background:var(--panel-solid);border:1px solid var(--cyan);border-radius:8px;
+    padding:22px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
+  #photo-lightbox.pano-active .box{border-color:var(--amber);}
+  #lightbox-close{position:absolute;top:14px;right:14px;background:var(--panel-solid);border:1px solid var(--line);
+    color:var(--text);padding:6px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;
+    cursor:pointer;z-index:2;}
+  #lightbox-close:hover{border-color:var(--cyan);}
+  .lightbox-imgbox{border-radius:6px;overflow:hidden;border:1px solid var(--line);background:#000;
+    margin:26px 0 14px;display:flex;align-items:center;justify-content:center;}
+  .lightbox-imgbox img{width:100%;max-height:60vh;object-fit:contain;display:block;}
+  .lightbox-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:19px;color:var(--text);
+    margin-bottom:8px;}
+  .lightbox-fact{font-size:13px;color:#c3ccd6;line-height:1.6;font-family:'Rajdhani',sans-serif;
+    margin-bottom:10px;}
+  .lightbox-credit{font-size:11px;color:var(--dim);}
 
   .view-tag{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:var(--dim);
     font-size:10px;letter-spacing:.2em;text-align:center;}
@@ -615,10 +638,25 @@
   <div id="photo-toast">
     <button id="photo-toast-close">✕</button>
     <div class="pt-label" id="photo-toast-label">🪨 SAMPLE ANALYZED</div>
-    <div class="pt-imgbox"><img id="photo-toast-img" src="" alt="" onerror="this.parentElement.style.display='none';"></div>
+    <div class="pt-imgbox" id="photo-toast-imgbox">
+      <img id="photo-toast-img" src="" alt="" onerror="this.parentElement.style.display='none';">
+      <div class="pt-expand-hint">🔍 แตะเพื่อดูเต็มจอ</div>
+    </div>
     <div class="pt-name" id="photo-toast-name">—</div>
     <div class="pt-fact" id="photo-toast-fact">—</div>
     <div class="pt-credit" id="photo-toast-credit">—</div>
+  </div>
+</div>
+
+<!-- ================= PHOTO LIGHTBOX (pinned full view) ================= -->
+<div id="photo-lightbox">
+  <div class="box">
+    <button id="lightbox-close">✕ ปิด</button>
+    <div class="pt-label" id="lightbox-label" style="font-size:11px;">🪨 SAMPLE ANALYZED</div>
+    <div class="lightbox-imgbox"><img id="lightbox-img" src="" alt="" onerror="this.style.display='none';"></div>
+    <div class="lightbox-name" id="lightbox-name">—</div>
+    <div class="lightbox-fact" id="lightbox-fact">—</div>
+    <div class="lightbox-credit" id="lightbox-credit">—</div>
   </div>
 </div>
 
@@ -856,7 +894,10 @@ const SAMPLE_PHOTOS = {
       fact:'นักบินอวกาศ Apollo 15 พบหินก้อนนี้ในปี 1971 ภายหลังพิสูจน์ว่ามีอายุกว่า 4 พันล้านปี เป็นชิ้นส่วนเปลือกดวงจันทร์ยุคแรกเริ่ม' },
     { photo:'https://images-assets.nasa.gov/image/as17-134-20425/as17-134-20425~large.jpg',
       name:'ตัวอย่างจากคราดสำรวจ Apollo 17', credit:'NASA',
-      fact:'นักบินอวกาศใช้ "คราด" เก็บเศษหินขนาด 1.3-2.5 ซม. เป็นจำนวนมากในคราวเดียว เพราะก้มตัวเก็บทีละก้อนในชุดอวกาศทำได้ยาก' }
+      fact:'นักบินอวกาศใช้ "คราด" เก็บเศษหินขนาด 1.3-2.5 ซม. เป็นจำนวนมากในคราวเดียว เพราะก้มตัวเก็บทีละก้อนในชุดอวกาศทำได้ยาก' },
+    { photo:'https://archive.org/download/as17-137-20990/as17-137-20990.jpg',
+      name:'"ดินสีส้ม" ที่หลุม Shorty', credit:'NASA',
+      fact:'นักธรณีวิทยา Harrison Schmitt พบดินสีส้มสดที่ไม่มีใครคาดคิดในปี 1972 ภายหลังพิสูจน์ว่าเป็นเม็ดแก้วภูเขาไฟอายุกว่า 3.6 พันล้านปี' }
   ]
 };
 const PANORAMA_PHOTOS = {
@@ -871,10 +912,14 @@ const PANORAMA_PHOTOS = {
   moon: [
     { photo:'https://live.staticflickr.com/65535/48299943216_ac2006cdf8_b.jpg',
       name:'หุบเขา Taurus-Littrow (Apollo 17)', credit:'NASA / NASA Johnson Space Center',
-      fact:'ภาพพาโนรามาถ่ายที่ "สถานี 5" ระหว่างเดินสำรวจครั้งที่สองของภารกิจ Apollo 17 ปี 1972 ท้องฟ้าถูกทำให้เป็นสีดำสนิทเพราะนักบินอวกาศไม่เห็นดาวเลยจากแสงสะท้อนจ้าของพื้นผิวดวงจันทร์' }
+      fact:'ภาพพาโนรามาถ่ายที่ "สถานี 5" ระหว่างเดินสำรวจครั้งที่สองของภารกิจ Apollo 17 ปี 1972 ท้องฟ้าถูกทำให้เป็นสีดำสนิทเพราะนักบินอวกาศไม่เห็นดาวเลยจากแสงสะท้อนจ้าของพื้นผิวดวงจันทร์' },
+    { photo:'https://live.staticflickr.com/65535/48299943976_0ea49392ff_b.jpg',
+      name:'Tranquility Base (Apollo 11)', credit:'NASA / NASA Johnson Space Center',
+      fact:'ภาพพาโนรามาแรกที่มนุษย์ถ่ายบนโลกอื่น ประกอบจากภาพที่ Neil Armstrong ถ่ายไว้ในปี 1969 ที่จุดลงจอดแห่งแรกของมนุษยชาติ' }
   ]
 };
 let shownSamplePhotoIdx = new Set(), shownPanoramaPhotoIdx = new Set();
+let lastSampleIdx = {idx:null}, lastPanoIdx = {idx:null};
 
 const DIFFICULTIES = {
   easy: {
@@ -1227,7 +1272,9 @@ function toast(msg){
 }
 
 let photoToastTimeout = null;
+let currentPhotoItem = null;
 function renderPhotoToast(kind, item){
+  currentPhotoItem = { kind, item };
   const el = document.getElementById('photo-toast');
   el.classList.toggle('pano', kind==='pano');
   document.getElementById('photo-toast-label').textContent = kind==='sample' ? '🪨 SAMPLE ANALYZED — REAL PHOTO' : '📷 PANORAMA CAPTURED — REAL PHOTO';
@@ -1241,21 +1288,51 @@ function renderPhotoToast(kind, item){
   clearTimeout(photoToastTimeout);
   photoToastTimeout = setTimeout(()=>el.classList.remove('show'), kind==='sample' ? 5000 : 6500);
 }
-function pickFromPool(pool, shownSet){
+function pickFromPool(pool, shownSet, lastIdxHolder){
   if(!pool || !pool.length) return null;
   let avail = pool.map((_,i)=>i).filter(i=>!shownSet.has(i));
   if(avail.length===0){ shownSet.clear(); avail = pool.map((_,i)=>i); }
+  // Never immediately repeat the exact photo just shown, even right at the moment the
+  // pool cycles back around (as long as there's at least one other option available).
+  if(avail.length>1 && lastIdxHolder.idx!==null){
+    const filtered = avail.filter(i=>i!==lastIdxHolder.idx);
+    if(filtered.length>0) avail = filtered;
+  }
   const idx = avail[Math.floor(Math.random()*avail.length)];
   shownSet.add(idx);
+  lastIdxHolder.idx = idx;
   return pool[idx];
 }
 function showRandomSamplePhoto(){
-  const item = pickFromPool(SAMPLE_PHOTOS[planet.key], shownSamplePhotoIdx);
+  const item = pickFromPool(SAMPLE_PHOTOS[planet.key], shownSamplePhotoIdx, lastSampleIdx);
   if(item) renderPhotoToast('sample', item);
 }
 function showRandomPanoramaPhoto(){
-  const item = pickFromPool(PANORAMA_PHOTOS[planet.key], shownPanoramaPhotoIdx);
+  const item = pickFromPool(PANORAMA_PHOTOS[planet.key], shownPanoramaPhotoIdx, lastPanoIdx);
   if(item) renderPhotoToast('pano', item);
+}
+
+function openPhotoLightbox(){
+  if(!currentPhotoItem) return;
+  const { kind, item } = currentPhotoItem;
+  clearTimeout(photoToastTimeout);
+  document.getElementById('photo-toast').classList.remove('show');
+  document.getElementById('lightbox-label').textContent = kind==='sample' ? '🪨 SAMPLE ANALYZED — REAL PHOTO' : '📷 PANORAMA CAPTURED — REAL PHOTO';
+  const img = document.getElementById('lightbox-img');
+  img.style.display = '';
+  img.src = item.photo; img.alt = item.name;
+  document.getElementById('lightbox-name').textContent = item.name;
+  document.getElementById('lightbox-fact').textContent = item.fact;
+  document.getElementById('lightbox-credit').textContent = '📷 ' + item.credit;
+  const lb = document.getElementById('photo-lightbox');
+  lb.classList.toggle('pano-active', kind==='pano');
+  lb.style.display = 'flex';
+  if(gameState==='playing') paused = true;
+}
+function closePhotoLightbox(){
+  playClickSound();
+  document.getElementById('photo-lightbox').style.display = 'none';
+  if(gameState==='playing') paused = false;
 }
 
 function formatDelay(sec){
@@ -1507,6 +1584,10 @@ function onKeyDown(e){
   keys[e.code]=true;
   if(e.code==='Escape' && document.getElementById('rover-info-modal').style.display==='flex'){
     closeRoverInfo();
+    return;
+  }
+  if(e.code==='Escape' && document.getElementById('photo-lightbox').style.display==='flex'){
+    closePhotoLightbox();
     return;
   }
   if(gameState==='playing'){
@@ -2556,6 +2637,9 @@ function startMission(planetKey, roverId, difficultyKey){
   hullIntegrity = 100;
   hasMovedThisMission = false;
   shownSamplePhotoIdx.clear(); shownPanoramaPhotoIdx.clear();
+  lastSampleIdx.idx = null; lastPanoIdx.idx = null;
+  currentPhotoItem = null;
+  document.getElementById('photo-lightbox').style.display = 'none';
   document.getElementById('photo-toast').classList.remove('show');
   missionStartTime = clock ? clock.elapsedTime : 0;
   tutorialActive = !tutorialSeen;
@@ -3533,6 +3617,11 @@ document.getElementById('rover-info-modal').addEventListener('click', (e)=>{
 document.getElementById('photo-toast-close').addEventListener('click', ()=>{
   clearTimeout(photoToastTimeout);
   document.getElementById('photo-toast').classList.remove('show');
+});
+document.getElementById('photo-toast-imgbox').addEventListener('click', openPhotoLightbox);
+document.getElementById('lightbox-close').addEventListener('click', closePhotoLightbox);
+document.getElementById('photo-lightbox').addEventListener('click', (e)=>{
+  if(e.target.id==='photo-lightbox') closePhotoLightbox();
 });
 
 function quitToMainMenu(){
