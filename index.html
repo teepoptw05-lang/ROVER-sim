@@ -78,6 +78,35 @@
     color:var(--amber);background:rgba(35,26,12,0.8);border:1px solid #4a3a1e;border-radius:3px;padding:2px 6px;}
   .best-banner{font-family:'Space Mono',monospace;font-size:12px;color:var(--amber);background:rgba(35,26,12,0.5);
     border:1px solid #4a3a1e;border-radius:4px;padding:6px 16px;}
+  .planet-topbar{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;}
+  .logbook-open-btn{font-size:12px;padding:7px 14px;}
+
+  #logbook-modal{position:fixed;inset:0;z-index:29;background:rgba(3,5,8,0.92);display:none;
+    align-items:center;justify-content:center;padding:16px;font-family:'Space Mono',monospace;}
+  .logbook-box{background:var(--panel-solid);border:1px solid var(--cyan);border-radius:8px;
+    padding:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
+  .logbook-box h3{font-family:'Rajdhani',sans-serif;}
+  .logbook-progress{color:var(--cyan);font-size:12px;margin-bottom:14px;}
+  .logbook-section-title{font-size:10.5px;letter-spacing:.08em;color:var(--amber);margin:16px 0 8px;
+    text-transform:uppercase;}
+  .logbook-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;}
+  .lb-item{background:#0d1420;border:1px solid var(--line);border-radius:6px;overflow:hidden;
+    text-align:center;font-family:'Rajdhani',sans-serif;}
+  .lb-item.lb-discovered{cursor:pointer;}
+  .lb-item.lb-discovered:hover{border-color:var(--cyan);}
+  .lb-item img{width:100%;height:60px;object-fit:cover;display:block;}
+  .lb-item .lb-name{font-size:9.5px;color:var(--dim);padding:4px 3px;line-height:1.3;}
+  .lb-item.lb-discovered .lb-name{color:var(--text);}
+  .lb-item.lb-locked{opacity:0.55;}
+  .lb-lock{height:60px;display:flex;align-items:center;justify-content:center;font-size:20px;
+    background:#05070a;}
+  .logbook-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+  .logbook-actions .btn{font-size:11px;padding:8px 12px;}
+  #logbook-close{position:absolute;top:18px;right:18px;background:var(--panel-solid);border:1px solid var(--line);
+    color:var(--text);padding:6px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;
+    cursor:pointer;z-index:2;}
+  #logbook-close:hover{border-color:var(--cyan);}
+
   .preview-stage{position:relative;width:100%;max-width:420px;height:190px;border:1px solid var(--line);
     border-radius:6px;background:radial-gradient(ellipse at 50% 40%, #0e1620 0%, #05070a 100%);overflow:hidden;}
   .builder-preview .preview-stage{max-width:100%;height:160px;margin-bottom:14px;}
@@ -426,7 +455,10 @@
   <div class="eyebrow">Surveyor Program // Mission Briefing</div>
   <h1 class="title-xl">เลือกดาวสำหรับภารกิจสำรวจ</h1>
   <p class="subtitle">เลือกโลกที่จะส่งหุ่นยนต์ลงสำรวจ แต่ละดาวมีแรงโน้มถ่วง ภูมิประเทศ และอันตรายที่แตกต่างกัน มองผ่านกล้อง Navcam ของหุ่นยนต์เอง</p>
-  <div class="best-banner" id="best-banner" style="display:none;">🏆 คะแนนดีที่สุดของคุณ: <b id="best-banner-score">0</b> คะแนน</div>
+  <div class="planet-topbar">
+    <div class="best-banner" id="best-banner" style="display:none;">🏆 คะแนนดีที่สุดของคุณ: <b id="best-banner-score">0</b> คะแนน</div>
+    <button class="btn ghost logbook-open-btn" id="logbook-open-btn">📖 สมุดบันทึกภาพ</button>
+  </div>
   <div class="card-row">
     <div class="card" tabindex="0" data-planet="mars">
       <div class="planet-orb orb-mars"></div>
@@ -660,6 +692,33 @@
   </div>
 </div>
 
+<!-- ================= PHOTO LOGBOOK ================= -->
+<div id="logbook-modal">
+  <div class="box logbook-box">
+    <button id="logbook-close">✕ ปิด</button>
+    <h3 style="margin:0 0 4px;">📖 สมุดบันทึกภาพถ่ายจริง</h3>
+    <div class="logbook-progress" id="logbook-progress">0 / 10 ค้นพบแล้ว</div>
+
+    <div class="logbook-section-title">🔴 ดาวอังคาร — ตัวอย่างหิน</div>
+    <div class="logbook-grid" id="logbook-mars-samples"></div>
+    <div class="logbook-section-title">🔴 ดาวอังคาร — พาโนรามา</div>
+    <div class="logbook-grid" id="logbook-mars-panos"></div>
+    <div class="logbook-section-title">⚪ ดวงจันทร์ — ตัวอย่างหิน</div>
+    <div class="logbook-grid" id="logbook-moon-samples"></div>
+    <div class="logbook-section-title">⚪ ดวงจันทร์ — พาโนรามา</div>
+    <div class="logbook-grid" id="logbook-moon-panos"></div>
+
+    <div class="logbook-actions">
+      <button class="btn ghost" id="logbook-export-btn">⬇ ส่งออกไฟล์บันทึก</button>
+      <button class="btn ghost" id="logbook-import-btn">⬆ นำเข้าไฟล์บันทึก</button>
+      <input type="file" id="logbook-import-input" accept="application/json" style="display:none;">
+    </div>
+    <p style="color:var(--dim);font-size:10.5px;margin-top:10px;line-height:1.5;">
+      ความคืบหน้าจะบันทึกอัตโนมัติเมื่อเปิดผ่านหน้าต่างของ Claude แต่ถ้านำไฟล์เกมไปเปิดที่อื่น ให้กด "ส่งออกไฟล์บันทึก" เพื่อเก็บไว้ แล้วกด "นำเข้าไฟล์บันทึก" ครั้งหน้าเพื่อโหลดคืน
+    </p>
+  </div>
+</div>
+
 <!-- ================= HELP ================= -->
 <div id="help">
   <div class="box">
@@ -713,6 +772,7 @@
     <div style="display:flex;flex-direction:column;gap:10px;">
       <button id="pause-resume" class="btn">▶ กลับไปควบคุมหุ่นยนต์</button>
       <button id="pause-help" class="btn ghost">? วิธีเล่น / ปุ่มควบคุม</button>
+      <button id="pause-logbook" class="btn ghost">📖 สมุดบันทึกภาพ</button>
       <button id="pause-quit" class="btn ghost">⏏ ออกไปเมนูหลัก</button>
     </div>
   </div>
@@ -919,6 +979,7 @@ const PANORAMA_PHOTOS = {
   ]
 };
 let shownSamplePhotoIdx = new Set(), shownPanoramaPhotoIdx = new Set();
+let discoveredPhotoKeys = new Set();
 let lastSampleIdx = {idx:null}, lastPanoIdx = {idx:null};
 
 const DIFFICULTIES = {
@@ -1275,6 +1336,7 @@ let photoToastTimeout = null;
 let currentPhotoItem = null;
 function renderPhotoToast(kind, item){
   currentPhotoItem = { kind, item };
+  markPhotoDiscovered(item);
   const el = document.getElementById('photo-toast');
   el.classList.toggle('pano', kind==='pano');
   document.getElementById('photo-toast-label').textContent = kind==='sample' ? '🪨 SAMPLE ANALYZED — REAL PHOTO' : '📷 PANORAMA CAPTURED — REAL PHOTO';
@@ -1312,11 +1374,7 @@ function showRandomPanoramaPhoto(){
   if(item) renderPhotoToast('pano', item);
 }
 
-function openPhotoLightbox(){
-  if(!currentPhotoItem) return;
-  const { kind, item } = currentPhotoItem;
-  clearTimeout(photoToastTimeout);
-  document.getElementById('photo-toast').classList.remove('show');
+function showLightbox(kind, item){
   document.getElementById('lightbox-label').textContent = kind==='sample' ? '🪨 SAMPLE ANALYZED — REAL PHOTO' : '📷 PANORAMA CAPTURED — REAL PHOTO';
   const img = document.getElementById('lightbox-img');
   img.style.display = '';
@@ -1327,12 +1385,137 @@ function openPhotoLightbox(){
   const lb = document.getElementById('photo-lightbox');
   lb.classList.toggle('pano-active', kind==='pano');
   lb.style.display = 'flex';
+}
+let lightboxReturnTarget = 'toast';
+function openPhotoLightbox(){
+  if(!currentPhotoItem) return;
+  clearTimeout(photoToastTimeout);
+  document.getElementById('photo-toast').classList.remove('show');
+  lightboxReturnTarget = 'toast';
+  showLightbox(currentPhotoItem.kind, currentPhotoItem.item);
   if(gameState==='playing') paused = true;
+}
+function openPhotoLightboxFromLogbook(kind, item){
+  lightboxReturnTarget = 'logbook';
+  document.getElementById('logbook-modal').style.display = 'none';
+  showLightbox(kind, item);
 }
 function closePhotoLightbox(){
   playClickSound();
   document.getElementById('photo-lightbox').style.display = 'none';
-  if(gameState==='playing') paused = false;
+  if(lightboxReturnTarget==='logbook'){
+    document.getElementById('logbook-modal').style.display = 'flex';
+  } else if(gameState==='playing'){
+    paused = false;
+  }
+}
+
+/* ============================================================
+   CROSS-SESSION SAVE DATA
+   Uses the sandboxed artifact key-value storage API (window.storage) when available —
+   this only exists when the game is opened inside Claude's own preview window. When the
+   file is hosted elsewhere (e.g. GitHub Pages) window.storage won't exist at all, so every
+   call here is wrapped defensively and silently no-ops rather than breaking the game.
+   The Export/Import buttons in the logbook are the universal fallback that works anywhere.
+   ============================================================ */
+async function saveGameData(){
+  if(typeof window==='undefined' || !window.storage) return;
+  try{
+    const payload = JSON.stringify({
+      v:1, bestScores: sessionBests, discovered: [...discoveredPhotoKeys], builderState: builderState
+    });
+    await window.storage.set('surveyorSaveData', payload, false);
+  }catch(e){ /* storage unavailable or failed — keep playing without persistence */ }
+}
+async function loadGameData(){
+  if(typeof window==='undefined' || !window.storage) return;
+  try{
+    const result = await window.storage.get('surveyorSaveData', false);
+    if(result && result.value){
+      const data = JSON.parse(result.value);
+      if(data.bestScores) sessionBests = data.bestScores;
+      if(data.discovered) discoveredPhotoKeys = new Set(data.discovered);
+      if(data.builderState) Object.assign(builderState, data.builderState);
+    }
+  }catch(e){ /* no save yet, or storage unavailable — start fresh, not an error */ }
+}
+function exportSaveFile(){
+  playClickSound();
+  const payload = { v:1, bestScores: sessionBests, discovered:[...discoveredPhotoKeys], builderState, savedAt:new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'surveyor-save.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('บันทึกไฟล์ surveyor-save.json แล้ว');
+}
+function importSaveFileFromInput(fileInput){
+  const file = fileInput.files && fileInput.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(data.bestScores) sessionBests = data.bestScores;
+      if(data.discovered) discoveredPhotoKeys = new Set(data.discovered);
+      if(data.builderState) Object.assign(builderState, data.builderState);
+      updateBestBanner();
+      renderLogbook();
+      saveGameData();
+      toast('โหลดไฟล์บันทึกสำเร็จ');
+    }catch(err){ toast('ไฟล์ไม่ถูกต้อง หรือเสียหาย'); }
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- photo logbook ---------- */
+function markPhotoDiscovered(item){
+  if(!discoveredPhotoKeys.has(item.photo)){
+    discoveredPhotoKeys.add(item.photo);
+    saveGameData();
+  }
+}
+function logbookGridHTML(pool){
+  return pool.map(item=>{
+    if(discoveredPhotoKeys.has(item.photo)){
+      return `<div class="lb-item lb-discovered" data-photo="${item.photo}"><img src="${item.photo}" alt="" loading="lazy" onerror="this.style.display='none';"><div class="lb-name">${item.name}</div></div>`;
+    }
+    return `<div class="lb-item lb-locked"><div class="lb-lock">🔒</div><div class="lb-name">???</div></div>`;
+  }).join('');
+}
+function wireLogbookGrid(containerId, pool, kind){
+  const el = document.getElementById(containerId);
+  el.innerHTML = logbookGridHTML(pool);
+  el.querySelectorAll('.lb-discovered').forEach(node=>{
+    node.addEventListener('click', ()=>{
+      const item = pool.find(p=>p.photo===node.dataset.photo);
+      if(item){ playClickSound(); openPhotoLightboxFromLogbook(kind, item); }
+    });
+  });
+}
+function renderLogbook(){
+  wireLogbookGrid('logbook-mars-samples', SAMPLE_PHOTOS.mars, 'sample');
+  wireLogbookGrid('logbook-moon-samples', SAMPLE_PHOTOS.moon, 'sample');
+  wireLogbookGrid('logbook-mars-panos', PANORAMA_PHOTOS.mars, 'pano');
+  wireLogbookGrid('logbook-moon-panos', PANORAMA_PHOTOS.moon, 'pano');
+  const total = SAMPLE_PHOTOS.mars.length + SAMPLE_PHOTOS.moon.length + PANORAMA_PHOTOS.mars.length + PANORAMA_PHOTOS.moon.length;
+  document.getElementById('logbook-progress').textContent = `${discoveredPhotoKeys.size} / ${total} ค้นพบแล้ว`;
+}
+let logbookReturnTarget = null;
+function openLogbook(){
+  playClickSound();
+  const pm = document.getElementById('pause-menu');
+  logbookReturnTarget = (pm.style.display==='flex') ? 'pause' : null;
+  if(logbookReturnTarget==='pause') pm.style.display='none';
+  renderLogbook();
+  document.getElementById('logbook-modal').style.display = 'flex';
+}
+function closeLogbook(){
+  playClickSound();
+  document.getElementById('logbook-modal').style.display = 'none';
+  if(logbookReturnTarget==='pause') document.getElementById('pause-menu').style.display = 'flex';
 }
 
 function formatDelay(sec){
@@ -1588,6 +1771,10 @@ function onKeyDown(e){
   }
   if(e.code==='Escape' && document.getElementById('photo-lightbox').style.display==='flex'){
     closePhotoLightbox();
+    return;
+  }
+  if(e.code==='Escape' && document.getElementById('logbook-modal').style.display==='flex'){
+    closeLogbook();
     return;
   }
   if(gameState==='playing'){
@@ -2641,6 +2828,7 @@ function startMission(planetKey, roverId, difficultyKey){
   currentPhotoItem = null;
   document.getElementById('photo-lightbox').style.display = 'none';
   document.getElementById('photo-toast').classList.remove('show');
+  document.getElementById('logbook-modal').style.display = 'none';
   missionStartTime = clock ? clock.elapsedTime : 0;
   tutorialActive = !tutorialSeen;
   tutorialStep = 0;
@@ -2771,7 +2959,7 @@ function showDebrief(){
   const isNewRecord = !prevBest || finalScore>prevBest;
   document.getElementById('debrief-best').textContent = prevBest ? prevBest+' PTS' : 'ยังไม่มีสถิติ';
   document.getElementById('debrief-newrecord').style.display = isNewRecord ? 'block' : 'none';
-  if(isNewRecord) sessionBests[bestKey] = finalScore;
+  if(isNewRecord){ sessionBests[bestKey] = finalScore; saveGameData(); }
 
   const stats = { collisionCount, boostActiveTime, nightObserved, stormObserved, collectedAnomaly, sol };
   const grid = document.getElementById('achv-grid');
@@ -3532,6 +3720,7 @@ document.getElementById('builder-deploy-btn').addEventListener('click', ()=>{
   document.getElementById('screen-builder').style.display='none';
   document.getElementById('screen-difficulty').style.display='flex';
   gameState = 'menu-difficulty';
+  saveGameData();
 });
 
 document.getElementById('btn-start-intro').addEventListener('click', ()=>{
@@ -3623,6 +3812,20 @@ document.getElementById('lightbox-close').addEventListener('click', closePhotoLi
 document.getElementById('photo-lightbox').addEventListener('click', (e)=>{
   if(e.target.id==='photo-lightbox') closePhotoLightbox();
 });
+document.getElementById('logbook-open-btn').addEventListener('click', openLogbook);
+document.getElementById('pause-logbook').addEventListener('click', openLogbook);
+document.getElementById('logbook-close').addEventListener('click', closeLogbook);
+document.getElementById('logbook-modal').addEventListener('click', (e)=>{
+  if(e.target.id==='logbook-modal') closeLogbook();
+});
+document.getElementById('logbook-export-btn').addEventListener('click', exportSaveFile);
+document.getElementById('logbook-import-btn').addEventListener('click', ()=>{
+  playClickSound();
+  document.getElementById('logbook-import-input').click();
+});
+document.getElementById('logbook-import-input').addEventListener('change', (e)=>{
+  importSaveFileFromInput(e.target);
+});
 
 function quitToMainMenu(){
   document.getElementById('debrief').style.display='none';
@@ -3638,6 +3841,7 @@ function quitToMainMenu(){
 }
 
 initThree();
+loadGameData().then(()=>{ updateBestBanner(); });
 </script>
 </body>
 </html>
