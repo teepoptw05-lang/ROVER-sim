@@ -811,7 +811,7 @@ const PLANETS = {
     key:'mars', name:'ดาวอังคาร', label:'MARS',
     skyDay:0xd98a5f, skyNight:0x0d0705, fogDay:0xcf9a6e, fogNight:0x140a06,
     groundDay:0xa8532b, groundNight:0x2c130a,
-    heightScale:3.4, sunIntensity:1.05, hasAtmosphere:true, hasDustStorm:true,
+    heightScale:3.4, sunIntensity:1.05, hasAtmosphere:true, hasDustStorm:true, hasMicrometeorites:false,
     dayLength:100, craterCount:12, rockCount:70, rockColorA:0x8a5236, rockColorB:0x5c3a26,
     signalDelaySec:760, gravityLabel:'0.38 g'
   },
@@ -819,7 +819,7 @@ const PLANETS = {
     key:'moon', name:'ดวงจันทร์', label:'MOON',
     skyDay:0x05070c, skyNight:0x000000, fogDay:0x05070c, fogNight:0x000000,
     groundDay:0x8d8d8d, groundNight:0x1a1c20,
-    heightScale:4.4, sunIntensity:1.3, hasAtmosphere:false, hasDustStorm:false,
+    heightScale:4.4, sunIntensity:1.3, hasAtmosphere:false, hasDustStorm:false, hasMicrometeorites:true,
     dayLength:70, craterCount:20, rockCount:55, rockColorA:0x9a9a9a, rockColorB:0x6a6a6a,
     signalDelaySec:1.28, gravityLabel:'0.16 g'
   }
@@ -1050,6 +1050,7 @@ let score = 0;
 let samplesCollected = 0;
 let photosTaken = 0;
 let storm = { active:false, timer: 40, duration:0 };
+let meteorTimer = 40, activeMeteor = null;
 let toolHoldTime = 0;
 let boosting=false;
 let difficulty = DIFFICULTIES.normal;
@@ -1065,6 +1066,7 @@ let dustMotes = null, contactShadow = null, sunRaySprite = null;
 let marsSunsetFactShown = false;
 let starTexture = null;
 let solarPanelTexture = null, goldFoilTexture = null;
+let tireTreadTexture = null, wireTreadTexture = null;
 let wheelDustTimer = 0;
 let trackMarks = [];
 let trackDistanceAccum = 0;
@@ -1194,6 +1196,9 @@ function playWarningBeep(){ playTone({freq:880, duration:0.1, type:'square', vol
 function playFanfare(){
   [523,659,784,1046].forEach((f,i)=> playTone({freq:f, duration:0.25, type:'triangle', volume:0.2, delay:i*0.11}));
 }
+function playMeteorWhistle(){
+  playTone({freq:1400, freqEnd:220, duration:0.6, type:'sine', volume:0.1});
+}
 
 function startThemeMusic(){
   if(!audioCtx || themeMusicPlaying) return;
@@ -1308,9 +1313,15 @@ function getHeight(x,z){
       const s = t*t*(3-2*t);
       h -= c.depth*s;
     } else if(d < c.radius*1.25){
-      const rt = 1 - (d-c.radius)/(c.radius*0.25);
-      const rs = rt*rt*(3-2*rt);
-      h += c.depth*0.22*rs;
+      // Raised rim as a smooth hump: 0 right at the crater edge (matching the bowl's fade-out
+      // there), rising to its peak at the middle of the rim band, back to 0 at the outer edge.
+      // A profile that peaked AT the boundary instead would jump straight from 0 (bowl side)
+      // to full height (rim side) in zero distance — a real discontinuity a rover would seem
+      // to "launch" off. This shape has zero slope at both seams, so it's fully smooth.
+      const span = (d-c.radius)/(c.radius*0.25);
+      const hump = span<0.5 ? span*2 : (1-span)*2;
+      const hs = hump*hump*(3-2*hump);
+      h += c.depth*0.22*hs;
     }
   }
   return h;
@@ -2493,6 +2504,40 @@ function clearTrackMarks(){
 }
 
 /* ---------- rover model ---------- */
+function makeTireTreadTexture(wireMesh){
+  const w=64, h=32;
+  const cvs = document.createElement('canvas'); cvs.width=w; cvs.height=h;
+  const ctx = cvs.getContext('2d');
+  ctx.fillStyle = wireMesh ? '#c7cbc6' : '#131313';
+  ctx.fillRect(0,0,w,h);
+  const stripeCount = wireMesh ? 16 : 11;
+  const grooveW = w/stripeCount*0.42;
+  for(let i=0;i<stripeCount;i++){
+    const x = (i/stripeCount)*w;
+    ctx.fillStyle = wireMesh ? '#787d78' : '#040404';
+    ctx.fillRect(x, 0, grooveW, h);
+    ctx.fillStyle = wireMesh ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)';
+    ctx.fillRect(x, 0, 1.4, h);
+  }
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  return tex;
+}
+
+function addStrutSegment(parent, ax,ay,az, bx,by,bz, thickness, mat){
+  const dx=bx-ax, dy=by-ay, dz=bz-az;
+  const len = Math.sqrt(dx*dx+dy*dy+dz*dz);
+  if(len<0.001) return null;
+  const strut = new THREE.Mesh(new THREE.BoxGeometry(len, thickness, thickness), mat);
+  strut.position.set((ax+bx)/2, (ay+by)/2, (az+bz)/2);
+  const dir = new THREE.Vector3(dx,dy,dz).normalize();
+  strut.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir);
+  strut.castShadow = true;
+  parent.add(strut);
+  return strut;
+}
+
 function addWheel(group, x,y,z, radius, wireMesh=false){
   const wheelGroup = new THREE.Group();
   wheelGroup.position.set(x,y,z);
@@ -2500,12 +2545,17 @@ function addWheel(group, x,y,z, radius, wireMesh=false){
 
   const spinGroup = new THREE.Group(); // rotated over time to simulate rolling, independent of the axle tip above
 
+  if(wireMesh){ if(!wireTreadTexture) wireTreadTexture = makeTireTreadTexture(true); }
+  else { if(!tireTreadTexture) tireTreadTexture = makeTireTreadTexture(false); }
+  const treadTex = wireMesh ? wireTreadTexture : tireTreadTexture;
   const tireMat = wireMesh
-    ? new THREE.MeshStandardMaterial({ color:0xc7cbc6, roughness:0.45, metalness:0.75 })
-    : new THREE.MeshStandardMaterial({ color:0x161616, roughness:0.95, metalness:0.05 });
+    ? new THREE.MeshStandardMaterial({ color:0xffffff, map:treadTex, roughness:0.45, metalness:0.75 })
+    : new THREE.MeshStandardMaterial({ color:0xffffff, map:treadTex, roughness:0.95, metalness:0.05 });
   const tire = wireMesh
     ? new THREE.Mesh(new THREE.TorusGeometry(radius*0.86, radius*0.15, 8, 20), tireMat)
     : new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, radius*0.62, 18), tireMat);
+  if(!wireMesh) treadTex.repeat.set(6,1);
+  else treadTex.repeat.set(4,1);
   tire.castShadow = true; tire.receiveShadow = true;
   spinGroup.add(tire);
 
@@ -2568,7 +2618,11 @@ function buildRover(cfg){
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,1.3), accentMat);
     seat.position.set(-0.4,1.25,0); seat.castShadow=true;
     g.add(seat);
-    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.55,true)));
+    [[1.15,0.9,0.95],[1.15,0.9,-0.95],[-1.15,0.9,0.95],[-1.15,0.9,-0.95]].forEach(p=>{
+      wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.55,true));
+      const [wx,wy,wz] = p;
+      addStrutSegment(g, wx*0.6,0.92,wz*0.6, wx,wy,wz, 0.07, jointMat);
+    });
     const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,2.2,6), darkMat);
     antenna.position.set(-1.0,2.0,0.6); antenna.rotation.z=0.3;
     g.add(antenna);
@@ -2606,7 +2660,14 @@ function buildRover(cfg){
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.9,1.6), bodyMat);
     body.position.y = 1.05; body.castShadow = true;
     g.add(body);
-    [[1.0,0.5,0.85],[1.0,0.5,-0.85],[0,0.5,0.9],[0,0.5,-0.9],[-1.0,0.5,0.85],[-1.0,0.5,-0.85]].forEach(p=>wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.42)));
+    [[1.0,0.5,0.85],[1.0,0.5,-0.85],[0,0.5,0.9],[0,0.5,-0.9],[-1.0,0.5,0.85],[-1.0,0.5,-0.85]].forEach(p=>{
+      wheelSpins.push(addWheel(g,p[0],p[1],p[2],0.42));
+      const [wx,wy,wz] = p;
+      const pivotX = wx*0.5, pivotY = 0.88, pivotZ = clamp(wz*0.8,-0.72,0.72);
+      const kneeX = lerp(pivotX,wx,0.55), kneeY = lerp(pivotY,wy,0.4), kneeZ = lerp(pivotZ,wz,0.55);
+      addStrutSegment(g, pivotX,pivotY,pivotZ, kneeX,kneeY,kneeZ, 0.09, jointMat);
+      addStrutSegment(g, kneeX,kneeY,kneeZ, wx,wy+0.06,wz, 0.075, jointMat);
+    });
     const mast = new THREE.Mesh(new THREE.BoxGeometry(0.14,1.3,0.14), darkMat);
     mast.position.set(0.3,2.1,0); mast.castShadow=true;
     g.add(mast);
@@ -2815,6 +2876,13 @@ function startMission(planetKey, roverId, difficultyKey){
   battery = 100; score = 0; samplesCollected = 0; photosTaken = 0; sol = 1;
   sunAngle = 1.15;
   storm.active = false; storm.timer = rand(35,60)*difficulty.stormTimerMultiplier;
+  if(activeMeteor){
+    scene.remove(activeMeteor.mesh);
+    activeMeteor.mesh.geometry.dispose();
+    activeMeteor.mesh.material.dispose();
+    activeMeteor = null;
+  }
+  meteorTimer = rand(25,45)*difficulty.stormTimerMultiplier;
   viewMode = 'chase'; yawOffset = 0; pitchOffset = 0;
   touchInput = { forward:0, turn:0, boost:false };
   wheelDustTimer = 0;
@@ -3145,6 +3213,67 @@ function updateStorm(delta){
   }
 }
 
+function spawnMicrometeorite(){
+  const ang = rand(0, Math.PI*2);
+  const dist = rand(4, 16);
+  const ix = roverGroup.position.x + Math.cos(ang)*dist;
+  const iz = roverGroup.position.z + Math.sin(ang)*dist;
+  const iy = getHeight(ix, iz);
+  const start = new THREE.Vector3(ix + rand(-6,6), iy + rand(32,48), iz + rand(-6,6));
+  const end = new THREE.Vector3(ix, iy, iz);
+
+  const mesh = new THREE.Mesh(
+    new THREE.ConeGeometry(0.055, 0.85, 6),
+    new THREE.MeshBasicMaterial({ color:0xfff2c0, transparent:true, opacity:0.95, fog:false })
+  );
+  mesh.position.copy(start);
+  const dir = new THREE.Vector3().subVectors(end, start).normalize();
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  scene.add(mesh);
+
+  activeMeteor = { mesh, start, end, elapsed:0, duration: rand(0.5,0.8), impactX:ix, impactY:iy, impactZ:iz };
+  playMeteorWhistle();
+  toast('☄️ ตรวจพบวัตถุขนาดเล็กพุ่งเข้าใกล้พื้นผิว');
+}
+function resolveMeteorImpact(m){
+  spawnParticles({
+    position:{x:m.impactX, y:m.impactY+0.1, z:m.impactZ},
+    color: planet.rockColorA, count:24, spread:2.4, speed:3.4, size:0.15, lifetime:0.9, gravity:-2.4, upBias:1.1
+  });
+  playThudSound(1.15);
+  const distToRover = dist2(m.impactX, m.impactZ, roverGroup.position.x, roverGroup.position.z);
+  if(distToRover < 6){
+    const wasAbove50 = hullIntegrity>=50, wasAbove20 = hullIntegrity>=20;
+    hullIntegrity = clamp(hullIntegrity - rand(2,5), 0, 100);
+    if(wasAbove20 && hullIntegrity<20) toast('☄️ อุกกาบาตจิ๋วพุ่งชนใกล้มาก! ตัวถังเสียหายหนัก');
+    else if(wasAbove50 && hullIntegrity<50) toast('☄️ พุ่งชนใกล้ตัวหุ่นยนต์! ตัวถังเริ่มเสียหาย');
+    else toast('☄️ พุ่งชนใกล้ตัวหุ่นยนต์! ตัวถังเสียหายเล็กน้อย');
+  } else {
+    toast('☄️ อุกกาบาตจิ๋วพุ่งชนพื้นผิวห่างออกไป — ปลอดภัย');
+  }
+}
+function updateMicrometeorites(delta){
+  if(!planet.hasMicrometeorites) return;
+  if(!activeMeteor){
+    meteorTimer -= delta;
+    if(meteorTimer<=0){
+      spawnMicrometeorite();
+      meteorTimer = rand(28,60)*difficulty.stormTimerMultiplier;
+    }
+  } else {
+    activeMeteor.elapsed += delta;
+    const t = clamp(activeMeteor.elapsed/activeMeteor.duration, 0, 1);
+    activeMeteor.mesh.position.lerpVectors(activeMeteor.start, activeMeteor.end, t);
+    if(t>=1){
+      resolveMeteorImpact(activeMeteor);
+      scene.remove(activeMeteor.mesh);
+      activeMeteor.mesh.geometry.dispose();
+      activeMeteor.mesh.material.dispose();
+      activeMeteor = null;
+    }
+  }
+}
+
 function updateRoverMovement(delta){
   const cfg = roverCfg;
   const kf = (keys['KeyW']||keys['ArrowUp']) ? 1 : (keys['KeyS']||keys['ArrowDown']) ? -1 : 0;
@@ -3225,10 +3354,12 @@ function updateRoverMovement(delta){
   // Sample ground height at the rover's four corners (not just its center) so the tilt
   // reads the local slope correctly, then place the body so its wheels (which sit a known
   // offset below the body's own origin, per rover) actually touch that ground average.
-  // The sample distance scales with how far the rover is actually moving this frame, so
-  // faster rovers (and boosting) don't outrun their own lookahead points on rough terrain.
-  const lookSide = Math.max(1.3, Math.abs(spd)*2.2);
-  const lookFwd = Math.max(1.6, Math.abs(spd)*2.6);
+  // Side sampling stays fixed to the rover's actual physical width — it has nothing to do
+  // with forward speed, and letting it scale with speed (as before) meant fast driving would
+  // sample terrain well off to the sides that has nothing to do with the ground under the
+  // wheels, causing erratic tilt. Forward sampling gets a small, capped speed allowance only.
+  const lookSide = 1.3;
+  const lookFwd = clamp(1.6 + Math.abs(spd)*0.9, 1.6, 3.2);
   const hL = getHeight(roverGroup.position.x - Math.cos(roverGroup.rotation.y)*lookSide, roverGroup.position.z + Math.sin(roverGroup.rotation.y)*lookSide);
   const hR = getHeight(roverGroup.position.x + Math.cos(roverGroup.rotation.y)*lookSide, roverGroup.position.z - Math.sin(roverGroup.rotation.y)*lookSide);
   const hF = getHeight(roverGroup.position.x - Math.sin(roverGroup.rotation.y)*lookFwd, roverGroup.position.z - Math.cos(roverGroup.rotation.y)*lookFwd);
@@ -3486,6 +3617,7 @@ function animate(){
     if(sunAngle > Math.PI*2){ sunAngle -= Math.PI*2; sol++; }
     if(Math.sin(sunAngle) < 0) nightObserved = true;
     updateStorm(delta);
+    updateMicrometeorites(delta);
     const moveInfo = updateRoverMovement(delta);
     updateSky();
     updateCamera();
@@ -3834,6 +3966,12 @@ function quitToMainMenu(){
   document.getElementById('hud').style.display='none';
   stopEngineSound(); stopWindSound();
   startThemeMusic();
+  if(activeMeteor){
+    scene.remove(activeMeteor.mesh);
+    activeMeteor.mesh.geometry.dispose();
+    activeMeteor.mesh.material.dispose();
+    activeMeteor = null;
+  }
   paused = false;
   gameState = 'menu-planet';
   document.getElementById('screen-planet').style.display='flex';
