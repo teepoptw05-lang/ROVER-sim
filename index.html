@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SURVEYOR // Planetary Rover Uplink</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&family=Itim&display=swap');
 
   :root{
     --bg:#05070a;
@@ -23,8 +23,8 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;width:100%;height:100%;background:var(--bg);color:var(--text);
-    font-family:'Rajdhani',sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none;}
-  .mono{font-family:'Space Mono',monospace;}
+    font-family:'Mali',sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none;}
+  .mono{font-family:'Itim',monospace;}
   #canvas-container{position:fixed;inset:0;}
   canvas{display:block;}
 
@@ -46,7 +46,7 @@
     padding:40px 20px;
   }
   #menu-canvas{position:fixed;inset:0;z-index:-1;display:block;}
-  .eyebrow{font-family:'Space Mono',monospace;letter-spacing:.35em;font-size:11px;color:var(--amber);
+  .eyebrow{font-family:'Itim',monospace;letter-spacing:.35em;font-size:11px;color:var(--amber);
     text-transform:uppercase;opacity:.85;}
   .title-xl{font-size:clamp(28px,5vw,52px);font-weight:700;letter-spacing:.02em;margin:0;
     text-shadow:0 0 30px rgba(111,231,221,0.15);}
@@ -67,31 +67,31 @@
   .orb-moon{background:radial-gradient(circle at 35% 32%, #d9dade, #9aa3ad 45%, #4b5157 85%);
     box-shadow:inset -14px -10px 24px rgba(0,0,0,.6), 0 0 30px rgba(154,163,173,.2);}
   .card h3{font-size:22px;margin:0 0 2px;text-align:center;letter-spacing:.03em;}
-  .card .tag{text-align:center;color:var(--dim);font-size:12px;margin-bottom:14px;font-family:'Space Mono',monospace;}
+  .card .tag{text-align:center;color:var(--dim);font-size:12px;margin-bottom:14px;font-family:'Itim',monospace;}
   .stat-line{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);
-    font-family:'Space Mono',monospace;padding:4px 0;border-top:1px solid var(--line);}
+    font-family:'Itim',monospace;padding:4px 0;border-top:1px solid var(--line);}
   .stat-line span:last-child{color:var(--text);}
 
   .rover-card{width:300px;text-align:left;padding-top:46px;}
   .rover-card.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan);}
-  .rover-card .best-tag{position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:10px;
+  .rover-card .best-tag{position:absolute;top:12px;right:12px;font-family:'Itim',monospace;font-size:10px;
     color:var(--amber);background:rgba(35,26,12,0.8);border:1px solid #4a3a1e;border-radius:3px;padding:2px 6px;}
-  .best-banner{font-family:'Space Mono',monospace;font-size:12px;color:var(--amber);background:rgba(35,26,12,0.5);
+  .best-banner{font-family:'Itim',monospace;font-size:12px;color:var(--amber);background:rgba(35,26,12,0.5);
     border:1px solid #4a3a1e;border-radius:4px;padding:6px 16px;}
   .planet-topbar{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;}
   .logbook-open-btn{font-size:12px;padding:7px 14px;}
 
   #logbook-modal{position:fixed;inset:0;z-index:29;background:rgba(3,5,8,0.92);display:none;
-    align-items:center;justify-content:center;padding:16px;font-family:'Space Mono',monospace;}
+    align-items:center;justify-content:center;padding:16px;font-family:'Itim',monospace;}
   .logbook-box{background:var(--panel-solid);border:1px solid var(--cyan);border-radius:8px;
     padding:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
-  .logbook-box h3{font-family:'Rajdhani',sans-serif;}
+  .logbook-box h3{font-family:'Mali',sans-serif;}
   .logbook-progress{color:var(--cyan);font-size:12px;margin-bottom:14px;}
   .logbook-section-title{font-size:10.5px;letter-spacing:.08em;color:var(--amber);margin:16px 0 8px;
     text-transform:uppercase;}
   .logbook-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;}
   .lb-item{background:#0d1420;border:1px solid var(--line);border-radius:6px;overflow:hidden;
-    text-align:center;font-family:'Rajdhani',sans-serif;}
+    text-align:center;font-family:'Mali',sans-serif;}
   .lb-item.lb-discovered{cursor:pointer;}
   .lb-item.lb-discovered:hover{border-color:var(--cyan);}
   .lb-item img{width:100%;height:60px;object-fit:cover;display:block;}
@@ -103,7 +103,7 @@
   .logbook-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
   .logbook-actions .btn{font-size:11px;padding:8px 12px;}
   #logbook-close{position:absolute;top:18px;right:18px;background:var(--panel-solid);border:1px solid var(--line);
-    color:var(--text);padding:6px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;
+    color:var(--text);padding:6px 14px;border-radius:4px;font-family:'Mali',sans-serif;font-weight:700;
     cursor:pointer;z-index:2;}
   #logbook-close:hover{border-color:var(--cyan);}
 
@@ -111,25 +111,25 @@
     border-radius:6px;background:radial-gradient(ellipse at 50% 40%, #0e1620 0%, #05070a 100%);overflow:hidden;}
   .builder-preview .preview-stage{max-width:100%;height:160px;margin-bottom:14px;}
   .preview-stage canvas{width:100%;height:100%;display:block;}
-  .preview-stage-label{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:'Space Mono',monospace;
+  .preview-stage-label{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:'Itim',monospace;
     font-size:10px;color:var(--dim);letter-spacing:.08em;pointer-events:none;}
   .build-own-card{border-style:dashed;border-color:#4a3a1e;}
   .build-own-card:hover{border-color:var(--amber);}
-  .rover-card .badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.08em;
+  .rover-card .badge{display:inline-block;font-family:'Itim',monospace;font-size:10px;letter-spacing:.08em;
     padding:3px 8px;border-radius:3px;background:#132030;color:var(--cyan);border:1px solid #1e3a45;margin-bottom:10px;}
   .rover-card h3{font-size:20px;margin:0 0 2px;text-align:left;}
-  .rover-card .full{color:var(--dim);font-size:12px;font-family:'Space Mono',monospace;margin-bottom:12px;}
+  .rover-card .full{color:var(--dim);font-size:12px;font-family:'Itim',monospace;margin-bottom:12px;}
   .rover-card p.desc{font-size:13px;color:#b8c0cb;line-height:1.45;min-height:70px;margin:10px 0;}
   .bar-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);margin:5px 0;
-    font-family:'Space Mono',monospace;}
+    font-family:'Itim',monospace;}
   .bar-track{flex:1;height:5px;background:#161f2b;border-radius:3px;overflow:hidden;}
   .bar-fill{height:100%;background:var(--cyan);}
-  .back-link{position:fixed;top:20px;left:24px;z-index:30;color:var(--dim);font-family:'Space Mono',monospace;
+  .back-link{position:fixed;top:20px;left:24px;z-index:30;color:var(--dim);font-family:'Itim',monospace;
     font-size:12px;cursor:pointer;letter-spacing:.05em;}
   .back-link:hover{color:var(--cyan);}
 
   .btn{
-    font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.04em;font-size:14px;
+    font-family:'Mali',sans-serif;font-weight:700;letter-spacing:.04em;font-size:14px;
     background:var(--amber);color:#1a1204;border:none;padding:11px 22px;border-radius:4px;cursor:pointer;
     text-transform:uppercase;
   }
@@ -138,7 +138,7 @@
   .btn.ghost:hover{border-color:var(--cyan);color:var(--cyan);}
 
   /* ---------- HUD ---------- */
-  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;font-family:'Space Mono',monospace;
+  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;font-family:'Itim',monospace;
     display:none;}
   #hud .frame-corner{position:absolute;width:26px;height:26px;border:2px solid var(--cyan);opacity:.55;}
   .fc-tl{top:14px;left:14px;border-right:none;border-bottom:none;}
@@ -150,14 +150,14 @@
     align-items:flex-start;}
   .hud-block{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px 14px;
     font-size:11px;color:var(--dim);min-width:150px;}
-  .hud-block b{display:block;color:var(--text);font-size:15px;font-family:'Rajdhani',sans-serif;
+  .hud-block b{display:block;color:var(--text);font-size:15px;font-family:'Mali',sans-serif;
     font-weight:700;letter-spacing:.02em;}
   .hud-block.right{text-align:right;}
 
   .sol-badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);
     background:var(--panel);border:1px solid var(--amber);border-radius:50%;width:64px;height:64px;
     display:flex;flex-direction:column;align-items:center;justify-content:center;}
-  .sol-badge .n{font-size:20px;font-weight:700;font-family:'Rajdhani',sans-serif;color:var(--amber);line-height:1;}
+  .sol-badge .n{font-size:20px;font-weight:700;font-family:'Mali',sans-serif;color:var(--amber);line-height:1;}
   .sol-badge .l{font-size:8px;letter-spacing:.15em;color:var(--dim);margin-top:2px;}
 
   .hud-bottom-left{position:absolute;bottom:16px;left:52px;background:var(--panel);border:1px solid var(--line);
@@ -171,7 +171,7 @@
   .objectives{position:absolute;top:96px;left:52px;background:var(--panel);border:1px solid var(--line);
     border-radius:4px;padding:10px 14px;min-width:190px;font-size:12px;}
   .objectives h4{margin:0 0 6px;font-size:10px;letter-spacing:.15em;color:var(--amber);
-    font-family:'Space Mono',monospace;font-weight:400;}
+    font-family:'Itim',monospace;font-weight:400;}
   .obj-item{display:flex;justify-content:space-between;color:var(--dim);padding:2px 0;font-size:12px;}
   .obj-item.done{color:var(--good);}
   .obj-compass-row{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);color:var(--cyan);}
@@ -209,7 +209,7 @@
 
   #photo-toast{position:absolute;top:50%;right:16px;transform:translateY(-50%) translateX(120%);
     width:min(74vw,230px);background:var(--panel-solid);border:1px solid var(--cyan);border-radius:8px;
-    padding:10px;font-family:'Space Mono',monospace;opacity:0;transition:transform .4s ease, opacity .4s ease;
+    padding:10px;font-family:'Itim',monospace;opacity:0;transition:transform .4s ease, opacity .4s ease;
     pointer-events:none;z-index:15;}
   #photo-toast.show{transform:translateY(-50%) translateX(0);opacity:1;pointer-events:auto;}
   #photo-toast.pano{border-color:var(--amber);}
@@ -221,8 +221,8 @@
   #photo-toast.pano .pt-label{color:var(--amber);}
   .pt-imgbox{border-radius:5px;overflow:hidden;border:1px solid var(--line);background:#05070a;margin-bottom:7px;}
   .pt-imgbox img{width:100%;height:110px;object-fit:cover;display:block;}
-  .pt-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;}
-  .pt-fact{font-size:10.5px;color:var(--dim);line-height:1.45;font-family:'Rajdhani',sans-serif;margin-bottom:6px;}
+  .pt-name{font-family:'Mali',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;}
+  .pt-fact{font-size:10.5px;color:var(--dim);line-height:1.45;font-family:'Mali',sans-serif;margin-bottom:6px;}
   .pt-credit{font-size:9px;color:#5a6470;}
   #photo-toast-imgbox{cursor:pointer;position:relative;}
   .pt-expand-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -231,20 +231,20 @@
   #photo-toast-imgbox:hover .pt-expand-hint, #photo-toast-imgbox:active .pt-expand-hint{opacity:1;}
 
   #photo-lightbox{position:fixed;inset:0;z-index:28;background:rgba(3,5,8,0.92);display:none;
-    align-items:center;justify-content:center;padding:20px;font-family:'Space Mono',monospace;}
+    align-items:center;justify-content:center;padding:20px;font-family:'Itim',monospace;}
   #photo-lightbox .box{background:var(--panel-solid);border:1px solid var(--cyan);border-radius:8px;
     padding:22px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
   #photo-lightbox.pano-active .box{border-color:var(--amber);}
   #lightbox-close{position:absolute;top:14px;right:14px;background:var(--panel-solid);border:1px solid var(--line);
-    color:var(--text);padding:6px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;
+    color:var(--text);padding:6px 14px;border-radius:4px;font-family:'Mali',sans-serif;font-weight:700;
     cursor:pointer;z-index:2;}
   #lightbox-close:hover{border-color:var(--cyan);}
   .lightbox-imgbox{border-radius:6px;overflow:hidden;border:1px solid var(--line);background:#000;
     margin:26px 0 14px;display:flex;align-items:center;justify-content:center;}
   .lightbox-imgbox img{width:100%;max-height:60vh;object-fit:contain;display:block;}
-  .lightbox-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:19px;color:var(--text);
+  .lightbox-name{font-family:'Mali',sans-serif;font-weight:700;font-size:19px;color:var(--text);
     margin-bottom:8px;}
-  .lightbox-fact{font-size:13px;color:#c3ccd6;line-height:1.6;font-family:'Rajdhani',sans-serif;
+  .lightbox-fact{font-size:13px;color:#c3ccd6;line-height:1.6;font-family:'Mali',sans-serif;
     margin-bottom:10px;}
   .lightbox-credit{font-size:11px;color:var(--dim);}
 
@@ -254,10 +254,10 @@
 
   /* help overlay */
   #help{position:fixed;inset:0;z-index:25;background:rgba(3,5,8,0.88);display:none;align-items:center;
-    justify-content:center;font-family:'Space Mono',monospace;}
+    justify-content:center;font-family:'Itim',monospace;}
   #help .box{background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:28px 34px;
     max-width:480px;width:90%;}
-  #help h3{font-family:'Rajdhani',sans-serif;color:var(--amber);letter-spacing:.05em;margin-top:0;}
+  #help h3{font-family:'Mali',sans-serif;color:var(--amber);letter-spacing:.05em;margin-top:0;}
   #help .row{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);padding:6px 0;
     border-bottom:1px solid var(--line);}
   #help .row b{color:var(--text);}
@@ -268,7 +268,7 @@
     padding:32px 36px;max-width:340px;width:88%;}
 
   #rover-info-modal{position:fixed;inset:0;z-index:26;background:rgba(3,5,8,0.88);display:none;align-items:center;
-    justify-content:center;font-family:'Space Mono',monospace;padding:20px;}
+    justify-content:center;font-family:'Itim',monospace;padding:20px;}
   #rover-info-modal .box{background:var(--panel-solid);border:1px solid var(--cyan);border-radius:6px;
     padding:26px 30px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;}
   #rover-info-modal .row{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);padding:7px 0;
@@ -281,26 +281,26 @@
     background:#05070a;}
   .info-photo-box img{width:100%;height:180px;object-fit:cover;display:block;background:#0a0d12;}
   .info-photo-credit{font-size:10px;color:var(--dim);padding:5px 9px;background:rgba(0,0,0,0.3);
-    font-family:'Space Mono',monospace;}
+    font-family:'Itim',monospace;}
   .info-subhead{margin:16px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--amber);
-    font-family:'Space Mono',monospace;font-weight:400;text-transform:uppercase;}
+    font-family:'Itim',monospace;font-weight:400;text-transform:uppercase;}
   .info-achievements{margin:0;padding-left:18px;}
   .info-achievements li{font-size:12.5px;color:var(--text);line-height:1.5;margin-bottom:6px;
-    font-family:'Rajdhani',sans-serif;}
+    font-family:'Mali',sans-serif;}
   .info-funfact{margin-top:14px;padding:10px 12px;background:#0d1721;border:1px solid var(--line);
     border-radius:4px;font-size:12px;color:var(--dim);line-height:1.5;}
-  .info-funfact b{color:var(--cyan);font-family:'Rajdhani',sans-serif;}
+  .info-funfact b{color:var(--cyan);font-family:'Mali',sans-serif;}
   .info-btn{position:absolute;top:12px;left:12px;width:26px;height:26px;border-radius:50%;
     background:rgba(18,26,38,0.85);border:1px solid var(--cyan);color:var(--cyan);font-size:13px;
     cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
   .info-btn:hover{background:rgba(111,231,221,0.2);}
-  .card-status-tag{position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:9px;
+  .card-status-tag{position:absolute;top:12px;right:12px;font-family:'Itim',monospace;font-size:9px;
     padding:2px 6px;border-radius:3px;background:#132318;border:1px solid #1e4a2a;color:var(--good);}
   .card-status-tag.retired{background:#241a12;border-color:#4a3320;color:var(--amber);}
   .rover-card .best-tag{top:44px;}
 
   .icon-btn{pointer-events:auto;cursor:pointer;background:var(--panel-solid);border:1px solid var(--line);
-    color:var(--cyan);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.05em;
+    color:var(--cyan);font-family:'Itim',monospace;font-size:11px;letter-spacing:.05em;
     padding:4px 10px;border-radius:4px;margin-bottom:6px;}
   .icon-btn:hover{border-color:var(--cyan);}
 
@@ -310,11 +310,11 @@
   #debrief .box{background:var(--panel-solid);border:1px solid var(--amber);border-radius:8px;
     padding:38px 44px;max-width:460px;width:90%;text-align:center;max-height:88vh;overflow-y:auto;}
   #debrief h2{color:var(--amber);margin:0 0 6px;font-size:26px;}
-  #debrief .rank{font-family:'Space Mono',monospace;color:var(--cyan);font-size:13px;margin-bottom:20px;}
-  #debrief .stat{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:13px;
+  #debrief .rank{font-family:'Itim',monospace;color:var(--cyan);font-size:13px;margin-bottom:20px;}
+  #debrief .stat{display:flex;justify-content:space-between;font-family:'Itim',monospace;font-size:13px;
     color:var(--dim);padding:6px 0;border-bottom:1px solid var(--line);}
   #debrief .stat b{color:var(--text);}
-  #debrief .score{font-size:34px;color:var(--good);margin:16px 0;font-family:'Rajdhani',sans-serif;font-weight:700;}
+  #debrief .score{font-size:34px;color:var(--good);margin:16px 0;font-family:'Mali',sans-serif;font-weight:700;}
   #debrief .btns{display:flex;gap:12px;justify-content:center;margin-top:20px;}
 
   .achv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px;}
@@ -338,16 +338,16 @@
   .builder-screen{overflow-y:auto;justify-content:flex-start;padding-top:56px;padding-bottom:56px;}
   .builder-body{width:100%;max-width:620px;display:flex;flex-direction:column;gap:18px;}
   .builder-section h4{margin:0 0 8px;font-size:11px;letter-spacing:.12em;color:var(--amber);
-    font-family:'Space Mono',monospace;font-weight:400;text-transform:uppercase;}
+    font-family:'Itim',monospace;font-weight:400;text-transform:uppercase;}
   .builder-section h4 .hint{color:var(--dim);text-transform:none;letter-spacing:0;font-size:10px;}
   .builder-input{width:100%;background:var(--panel-solid);border:1px solid var(--line);border-radius:4px;
-    padding:10px 12px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:15px;}
+    padding:10px 12px;color:var(--text);font-family:'Mali',sans-serif;font-size:15px;}
   .builder-input:focus{outline:none;border-color:var(--cyan);}
   .builder-option-row{display:flex;gap:8px;flex-wrap:wrap;}
   .builder-opt{flex:1;min-width:140px;background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;
-    padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-family:'Rajdhani',sans-serif;}
+    padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-family:'Mali',sans-serif;}
   .builder-opt b{display:block;font-size:14px;font-weight:600;}
-  .builder-opt span{display:block;font-size:11px;color:var(--dim);margin-top:2px;font-family:'Space Mono',monospace;}
+  .builder-opt span{display:block;font-size:11px;color:var(--dim);margin-top:2px;font-family:'Itim',monospace;}
   .builder-opt:hover{border-color:var(--cyan);}
   .builder-opt.selected{border-color:var(--cyan);background:#11202a;}
   .builder-opt.selected b{color:var(--cyan);}
@@ -358,7 +358,7 @@
   .swatch.selected{border-color:#fff;box-shadow:0 0 0 2px var(--cyan);}
   .builder-preview{background:var(--panel-solid);border:1px solid var(--amber);border-radius:8px;padding:20px;}
   .builder-preview .preview-label{margin:0 0 10px;font-size:10px;letter-spacing:.15em;color:var(--amber);
-    font-family:'Space Mono',monospace;font-weight:400;}
+    font-family:'Itim',monospace;font-weight:400;}
   .builder-preview .preview-name{font-size:20px;font-weight:700;margin-bottom:10px;}
   .builder-preview .desc{color:var(--dim);font-size:13px;margin:12px 0;min-height:36px;}
   #builder-deploy-btn{width:100%;margin-top:8px;}
@@ -388,9 +388,9 @@
     align-items:flex-end;pointer-events:auto;}
   .tbtn-row{display:flex;gap:10px;}
   .tbtn{width:62px;height:62px;border-radius:50%;background:rgba(18,26,38,0.6);border:2px solid var(--cyan);
-    color:var(--text);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;display:flex;
+    color:var(--text);font-family:'Mali',sans-serif;font-weight:700;font-size:16px;display:flex;
     flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none;}
-  .tbtn span{font-size:8px;font-family:'Space Mono',monospace;color:var(--dim);letter-spacing:.02em;margin-top:1px;}
+  .tbtn span{font-size:8px;font-family:'Itim',monospace;color:var(--dim);letter-spacing:.02em;margin-top:1px;}
   .tbtn.active{background:rgba(111,231,221,0.4);}
   .tbtn.small{width:44px;height:44px;font-size:12px;}
 
@@ -735,6 +735,7 @@
     <div class="row"><span>Look around (Navcam mode)</span><b>Drag mouse</b></div>
     <div class="row"><span>Pause menu</span><b>ESC</b></div>
     <p style="color:var(--dim);font-size:12px;margin-top:14px;">บนมือถือ/แท็บเล็ต: ใช้จอยสติ๊กซ้ายขับ+เลี้ยว ปุ่ม E/F ด้านขวาใช้เครื่องมือ/ถ่ายภาพ ปุ่ม ⚡ เร่งเครื่อง และลากนิ้วบนหน้าจอเพื่อมองรอบ (โหมด Navcam)</p>
+    <p style="color:var(--amber);font-size:12px;margin-top:8px;">⚠ ทางลาดชันเกิน ~29° (ใกล้เคียงขีดจำกัดจริงของ Curiosity) จะทำให้ล้อเสียการยึดเกาะและวิ่งช้าลงมาก บางครั้งอ้อมไปทางอื่นอาจเร็วกว่าขึ้นตรงๆ</p>
     <p style="color:var(--dim);font-size:12px;margin-top:8px;">แตะปุ่ม "✕ ปิด" ด้านบน หรือแตะพื้นที่มืดรอบกล่องนี้ เพื่อกลับไปควบคุมหุ่นยนต์</p>
   </div>
 </div>
@@ -1607,6 +1608,7 @@ function initThree(){
   sunLight.shadow.camera.top=60; sunLight.shadow.camera.bottom=-60;
   sunLight.shadow.camera.far=300;
   sunLight.shadow.bias = -0.0015;
+  sunLight.shadow.camera.layers.enable(1);
   scene.add(sunLight);
   scene.add(sunLight.target);
 
@@ -2508,16 +2510,27 @@ function makeTireTreadTexture(wireMesh){
   const w=64, h=32;
   const cvs = document.createElement('canvas'); cvs.width=w; cvs.height=h;
   const ctx = cvs.getContext('2d');
-  ctx.fillStyle = wireMesh ? '#c7cbc6' : '#131313';
+  // Real rover wheels are bare aluminum/titanium, NOT black rubber tires — base is a
+  // brushed-metal silver with darker raised grousers (traction cleats) for tread pattern.
+  ctx.fillStyle = wireMesh ? '#c7cbc6' : '#9099a0';
   ctx.fillRect(0,0,w,h);
   const stripeCount = wireMesh ? 16 : 11;
   const grooveW = w/stripeCount*0.42;
   for(let i=0;i<stripeCount;i++){
     const x = (i/stripeCount)*w;
-    ctx.fillStyle = wireMesh ? '#787d78' : '#040404';
+    ctx.fillStyle = wireMesh ? '#787d78' : '#3f454c';
     ctx.fillRect(x, 0, grooveW, h);
-    ctx.fillStyle = wireMesh ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)';
+    ctx.fillStyle = wireMesh ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.4)';
     ctx.fillRect(x, 0, 1.4, h);
+  }
+  if(!wireMesh){
+    // subtle brushed-metal streaks so the surface doesn't read as flat plastic
+    for(let i=0;i<40;i++){
+      const y = Math.random()*h;
+      ctx.strokeStyle = `rgba(255,255,255,${(Math.random()*0.08).toFixed(3)})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
   }
   const tex = new THREE.CanvasTexture(cvs);
   tex.wrapS = THREE.RepeatWrapping;
@@ -2550,7 +2563,7 @@ function addWheel(group, x,y,z, radius, wireMesh=false){
   const treadTex = wireMesh ? wireTreadTexture : tireTreadTexture;
   const tireMat = wireMesh
     ? new THREE.MeshStandardMaterial({ color:0xffffff, map:treadTex, roughness:0.45, metalness:0.75 })
-    : new THREE.MeshStandardMaterial({ color:0xffffff, map:treadTex, roughness:0.95, metalness:0.05 });
+    : new THREE.MeshStandardMaterial({ color:0xd6cdb8, map:treadTex, roughness:0.6, metalness:0.55 });
   const tire = wireMesh
     ? new THREE.Mesh(new THREE.TorusGeometry(radius*0.86, radius*0.15, 8, 20), tireMat)
     : new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, radius*0.62, 18), tireMat);
@@ -2757,7 +2770,7 @@ function buildRover(cfg){
       const turretNub = new THREE.Mesh(new THREE.SphereGeometry(0.045,8,8), jointMat);
       turretNub.position.set(2.46,0.62,0.78);
       g.add(shoulder, armBase, elbow, armFore, wrist, turret, turretLens, turretNub);
-      toolMeshes.push(lensCollar, lens, shoulder, armBase, elbow, armFore, wrist, turret, turretLens, turretNub);
+      toolMeshes.push(shoulder, armBase, elbow, armFore, wrist, turret, turretLens, turretNub);
     }
     if(cfg.id==='perseverance'){
       const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.11,10,10), jointMat);
@@ -2791,7 +2804,7 @@ function buildRover(cfg){
       tip1.position.set(1.1,0.6,0.36);
       const tip2 = tip1.clone(); tip2.position.z=-0.36;
       g.add(radarProng, radarProng2, tip1, tip2);
-      toolMeshes.push(gpr, gprTrim, radarProng, radarProng2, tip1, tip2);
+      toolMeshes.push(radarProng, radarProng2, tip1, tip2);
     }
     if(cfg.hasArm){
       const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.1,10,10), jointMat);
@@ -3043,7 +3056,16 @@ function setRoverBodyVisible(visible){
   if(!roverGroup) return;
   const toolMeshes = roverGroup.userData.toolMeshes || [];
   roverGroup.traverse(child=>{
-    if(child.isMesh) child.visible = visible || toolMeshes.includes(child);
+    if(!child.isMesh) return;
+    child.visible = true; // layers, not the visible flag, now control what the main camera sees —
+                           // an invisible mesh can't cast a shadow at all, which used to make the
+                           // rover's own shadow vanish whenever Navcam mode hid its body.
+    if(visible || toolMeshes.includes(child)){
+      child.layers.set(0); // normal: rendered by the main camera like anything else
+    } else {
+      child.layers.set(1); // invisible to the main camera (layer 0 only), but the sun's shadow
+                            // camera has layer 1 enabled too, so it still casts a shadow on the ground
+    }
   });
 }
 function toggleView(){
@@ -3303,6 +3325,20 @@ function updateRoverMovement(delta){
   const slipPenalty = cfg.id==='lrv' ? slip*0.25 : slip*0.55;
   speedMult *= (1-slipPenalty);
 
+  // Real rovers have an actual maximum safe slope (Curiosity's is roughly 30°) beyond which
+  // wheels lose traction — sample the grade in the current facing direction and apply a
+  // strong (but not absolute) slowdown past that threshold, using the CURRENT position so it
+  // affects this frame's movement, not the position after it's already been applied.
+  const slopeProbe = 2.2;
+  const slopeHF = getHeight(roverGroup.position.x - Math.sin(roverGroup.rotation.y)*slopeProbe, roverGroup.position.z - Math.cos(roverGroup.rotation.y)*slopeProbe);
+  const slopeHB = getHeight(roverGroup.position.x + Math.sin(roverGroup.rotation.y)*slopeProbe, roverGroup.position.z + Math.cos(roverGroup.rotation.y)*slopeProbe);
+  const slopeAngle = Math.atan2(Math.abs(slopeHB-slopeHF), slopeProbe*2);
+  const MAX_SAFE_SLOPE = 0.5; // ~29 degrees
+  const steepSlope = slopeAngle > MAX_SAFE_SLOPE;
+  if(steepSlope){
+    speedMult *= clamp(1 - (slopeAngle-MAX_SAFE_SLOPE)/0.35, 0.18, 1);
+  }
+
   const hullFactor = hullIntegrity<70 ? clamp(hullIntegrity/70, 0.35, 1) : 1;
   speedMult *= hullFactor;
 
@@ -3396,7 +3432,7 @@ function updateRoverMovement(delta){
   updateEngineSound(clamp(Math.abs(speedMult),0,1), moving && speedMult>0.05);
   updateWindSound();
 
-  return { moving, speed: moving?Math.abs(cfg.speed*speedMult):0, slip, solarDead };
+  return { moving, speed: moving?Math.abs(cfg.speed*speedMult):0, slip, solarDead, steepSlope };
 }
 
 function updateCamera(){
@@ -3568,7 +3604,7 @@ function updateHUD(moveInfo){
 
   document.getElementById('tel-speed').textContent = moveInfo.speed.toFixed(1)+' m/s';
   document.getElementById('tel-pos').textContent = fakeCoord(roverGroup.position.x, roverGroup.position.z);
-  document.getElementById('tel-terrain').textContent = moveInfo.slip>0.5 ? 'Loose Regolith' : moveInfo.slip>0.15 ? 'Uneven' : 'Nominal';
+  document.getElementById('tel-terrain').textContent = moveInfo.steepSlope ? 'Steep Incline ⚠' : moveInfo.slip>0.5 ? 'Loose Regolith' : moveInfo.slip>0.15 ? 'Uneven' : 'Nominal';
   document.getElementById('tel-score').textContent = score;
 
   const banner = document.getElementById('warning-banner');
